@@ -1,4 +1,4 @@
-package com.cgvsu.ui.dialogs;
+package com.cgvsu.dialogs;
 
 public class ErrorDialog {
 }
