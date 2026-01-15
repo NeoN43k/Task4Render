@@ -1,124 +1,220 @@
 package com.cgvsu;
 
+import com.cgvsu.objreader.ObjReader;
+import com.cgvsu.objwriter.ObjWriter;
+import com.cgvsu.scene.SceneManager;
+import com.cgvsu.dialogs.ErrorDialog;
+import com.cgvsu.dialogs.SaveOptionsDialog;
+import com.cgvsu.model.Model;
+import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
-import javafx.scene.layout.Pane;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+
+import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.util.ResourceBundle;
 
 public class GuiController implements Initializable {
 
-    // === Левая панель ===
-    @FXML private TreeView<String> sceneTree;
-    @FXML private Button btnAdd;
-    @FXML private Button btnDelete;
+    @FXML
+    private BorderPane mainPane;
 
-    // === Центральная панель ===
-    @FXML private Pane renderPane;
+    @FXML
+    private MenuBar menuBar;
 
-    // === Правая панель ===
-    @FXML private Slider sliderTranslateX;
-    @FXML private TextField fieldTranslateX;
-    @FXML private Button btnApplyTranslation;
+    @FXML
+    private MenuItem openMenuItem;
 
-    // === Меню ===
-    @FXML private MenuItem menuOpen;
-    @FXML private MenuItem menuSave;
-    @FXML private MenuItem menuExit;
+    @FXML
+    private MenuItem saveMenuItem;
 
+    @FXML
+    private MenuItem exitMenuItem;
+
+    @FXML
+    private CheckMenuItem darkThemeMenuItem;
+
+    @FXML
+    private AnchorPane viewportPane;
+
+    @FXML
+    private TreeView<String> modelTreeView;
+
+    @FXML
+    private VBox transformationPanel;
+
+    @FXML
+    private ToggleButton selectVertexButton;
+
+    @FXML
+    private ToggleButton selectPolygonButton;
+
+    @FXML
+    private Button deleteSelectedButton;
+
+    private SceneManager sceneManager;
     private Stage primaryStage;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        sceneManager = new SceneManager();
+        setupUI();
         setupEventHandlers();
-        initSceneTree();
+    }
+
+    private void setupUI() {
+        // Инициализация TreeView для моделей
+        TreeItem<String> rootItem = new TreeItem<>("Сцена");
+        rootItem.setExpanded(true);
+        modelTreeView.setRoot(rootItem);
+        modelTreeView.setShowRoot(false);
+
+        // Слушатель изменений в списке моделей
+        sceneManager.getModels().addListener((ListChangeListener<SceneManager.SceneModel>) c -> {
+            rootItem.getChildren().clear();
+            for (int i = 0; i < sceneManager.getModels().size(); i++) {
+                SceneManager.SceneModel sceneModel = sceneManager.getModels().get(i);
+                TreeItem<String> modelItem = new TreeItem<>(sceneModel.getName());
+                modelItem.setExpanded(true);
+
+                // Добавляем чекбокс для видимости
+                CheckBox visibilityCheck = new CheckBox();
+                visibilityCheck.setSelected(sceneModel.isVisible());
+                visibilityCheck.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                    sceneModel.setVisible(newVal);
+                    // Обновить отрисовку
+                });
+
+                rootItem.getChildren().add(modelItem);
+            }
+        });
     }
 
     private void setupEventHandlers() {
-        // === Связывание слайдера и текстового поля ===
-        if (sliderTranslateX != null && fieldTranslateX != null) {
-            fieldTranslateX.textProperty().addListener((obs, oldVal, newVal) -> {
-                try {
-                    double value = Double.parseDouble(newVal);
-                    if (value >= sliderTranslateX.getMin() && value <= sliderTranslateX.getMax()) {
-                        sliderTranslateX.setValue(value);
-                    }
-                } catch (NumberFormatException e) {
-                    // Игнорируем неверный ввод
+        openMenuItem.setOnAction(event -> openModel());
+        saveMenuItem.setOnAction(event -> saveModel());
+        exitMenuItem.setOnAction(event -> System.exit(0));
+
+        darkThemeMenuItem.setOnAction(event -> toggleTheme());
+
+        deleteSelectedButton.setOnAction(event -> deleteSelectedElements());
+
+        // Множественный выбор в TreeView
+        modelTreeView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        modelTreeView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                int index = modelTreeView.getRoot().getChildren().indexOf(newVal);
+                if (index >= 0) {
+                    sceneManager.selectModel(index);
                 }
-            });
+            }
+        });
+    }
 
-            sliderTranslateX.valueProperty().addListener((obs, oldVal, newVal) -> {
-                fieldTranslateX.setText(String.format("%.2f", newVal.doubleValue()));
-            });
-        }
+    @FXML
+    private void openModel() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Открыть 3D модель");
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("OBJ Files", "*.obj")
+        );
 
-        // === Кнопки ===
-        if (btnApplyTranslation != null) {
-            btnApplyTranslation.setOnAction(e -> {
-                System.out.println("Применить перемещение: " +
-                        (fieldTranslateX != null ? fieldTranslateX.getText() : "0.0"));
-            });
-        }
+        File file = fileChooser.showOpenDialog(primaryStage);
+        if (file != null) {
+            try {
+                Model model = ObjReader.read(file.getAbsolutePath());
+                String modelName = file.getName().replace(".obj", "");
+                sceneManager.addModel(model, modelName);
 
-        if (btnAdd != null) {
-            btnAdd.setOnAction(e -> System.out.println("Добавить модель"));
-        }
+                // Обновить отрисовку
+                renderScene();
 
-        if (btnDelete != null) {
-            btnDelete.setOnAction(e -> System.out.println("Удалить модель"));
-        }
-
-        // === Меню ===
-        if (menuOpen != null) {
-            menuOpen.setOnAction(e -> System.out.println("Меню: Открыть"));
-        }
-
-        if (menuSave != null) {
-            menuSave.setOnAction(e -> System.out.println("Меню: Сохранить"));
-        }
-
-        if (menuExit != null) {
-            menuExit.setOnAction(e -> {
-                if (primaryStage != null) {
-                    primaryStage.close();
-                }
-            });
+            } catch (Exception e) {
+                ErrorDialog.show("Ошибка загрузки",
+                        "Не удалось загрузить модель: " + e.getMessage());
+            }
         }
     }
 
-    private void initSceneTree() {
-        if (sceneTree != null) {
-            TreeItem<String> root = new TreeItem<>("Сцена");
-            root.setExpanded(true);
-
-            TreeItem<String> models = new TreeItem<>("Модели");
-            models.setExpanded(true);
-
-            // Примерные модели для демонстрации
-            TreeItem<String> model1 = new TreeItem<>("Куб (cube.obj)");
-            TreeItem<String> model2 = new TreeItem<>("Сфера (sphere.obj)");
-
-            models.getChildren().addAll(model1, model2);
-
-            TreeItem<String> cameras = new TreeItem<>("Камеры");
-            TreeItem<String> camera1 = new TreeItem<>("Основная камера");
-            cameras.getChildren().add(camera1);
-
-            root.getChildren().addAll(models, cameras);
-            sceneTree.setRoot(root);
-
-            // Обработка выбора в дереве
-            sceneTree.getSelectionModel().selectedItemProperty().addListener(
-                    (obs, oldVal, newVal) -> {
-                        if (newVal != null) {
-                            System.out.println("Выбрано: " + newVal.getValue());
-                        }
-                    }
-            );
+    @FXML
+    private void saveModel() {
+        if (sceneManager.getSelectedModels().isEmpty()) {
+            ErrorDialog.show("Нет выбранных моделей",
+                    "Выберите модель для сохранения");
+            return;
         }
+
+        SaveOptionsDialog.SaveOptions options = SaveOptionsDialog.show(primaryStage);
+        if (options == null) return;
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Сохранить модель");
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("OBJ Files", "*.obj")
+        );
+
+        File file = fileChooser.showSaveDialog(primaryStage);
+        if (file != null) {
+            try {
+                SceneManager.SceneModel selectedModel = sceneManager.getSelectedModels().get(0);
+                Model modelToSave = selectedModel.getModel();
+
+                if (options.applyTransformations()) {
+                    // Здесь применить трансформации к модели
+                    // (будет реализовано математиком)
+                }
+
+                ObjWriter.write(modelToSave, file.getAbsolutePath());
+
+                Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
+                successAlert.setTitle("Успех");
+                successAlert.setHeaderText("Модель сохранена");
+                successAlert.setContentText("Файл: " + file.getName());
+                successAlert.showAndWait();
+
+            } catch (IOException e) {
+                ErrorDialog.show("Ошибка сохранения",
+                        "Не удалось сохранить модель: " + e.getMessage());
+            }
+        }
+    }
+
+    @FXML
+    private void toggleTheme() {
+        if (darkThemeMenuItem.isSelected()) {
+            mainPane.getStylesheets().remove("com/cgvsu/theme/LightTheme.css");
+            mainPane.getStylesheets().add("com/cgvsu/theme/DarkTheme.css");
+        } else {
+            mainPane.getStylesheets().remove("com/cgvsu/theme/DarkTheme.css");
+            mainPane.getStylesheets().add("com/cgvsu/theme/LightTheme.css");
+        }
+    }
+
+    @FXML
+    private void deleteSelectedElements() {
+        if (selectVertexButton.isSelected()) {
+            // Удалить выбранные вершины
+        } else if (selectPolygonButton.isSelected()) {
+            // Удалить выбранные полигоны
+        } else {
+            // Удалить выбранные модели
+            for (int index : sceneManager.getSelectedIndices()) {
+                sceneManager.removeModel(index);
+            }
+        }
+        renderScene();
+    }
+
+    private void renderScene() {
+        // Здесь будет вызов рендерера для отрисовки всех видимых моделей
+        // (реализуется третьим студентом)
     }
 
     public void setPrimaryStage(Stage stage) {

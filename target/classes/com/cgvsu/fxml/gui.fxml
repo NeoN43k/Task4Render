@@ -3,44 +3,97 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.cgvsu.GuiController">
-
+<BorderPane fx:id="mainPane" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.cgvsu.GuiController">
     <top>
-        <MenuBar>
-            <Menu text="File">
-                <MenuItem text="Open" fx:id="menuOpen"/>
-                <MenuItem text="Save" fx:id="menuSave"/>
-                <MenuItem text="Exit" fx:id="menuExit"/>
+        <MenuBar fx:id="menuBar">
+            <Menu text="Файл">
+                <MenuItem fx:id="openMenuItem" text="Открыть модель..." />
+                <MenuItem fx:id="saveMenuItem" text="Сохранить модель..." />
+                <SeparatorMenuItem />
+                <MenuItem fx:id="exitMenuItem" text="Выход" />
+            </Menu>
+            <Menu text="Вид">
+                <CheckMenuItem fx:id="darkThemeMenuItem" text="Темная тема" />
+                <SeparatorMenuItem />
+                <CheckMenuItem text="Показать сетку" />
+                <CheckMenuItem text="Показать оси" />
+            </Menu>
+            <Menu text="Редактирование">
+                <MenuItem text="Выделить все" />
+                <MenuItem text="Снять выделение" />
+                <SeparatorMenuItem />
+                <MenuItem fx:id="deleteMenuItem" text="Удалить выделенное" />
+            </Menu>
+            <Menu text="Справка">
+                <MenuItem text="О программе" />
             </Menu>
         </MenuBar>
     </top>
 
     <left>
         <VBox spacing="10" style="-fx-padding: 10;">
-            <Label text="Scene"/>
-            <TreeView fx:id="sceneTree" VBox.vgrow="ALWAYS"/>
-            <Button text="Add" fx:id="btnAdd"/>
-            <Button text="Delete" fx:id="btnDelete"/>
+            <Label text="Модели на сцене" style="-fx-font-weight: bold;" />
+            <TreeView fx:id="modelTreeView" VBox.vgrow="ALWAYS" />
+
+            <Separator />
+
+            <Label text="Инструменты" style="-fx-font-weight: bold;" />
+            <ToggleGroup fx:id="selectionModeGroup" />
+            <HBox spacing="5">
+                <ToggleButton fx:id="selectModelButton" text="Модель" toggleGroup="$selectionModeGroup" selected="true" />
+                <ToggleButton fx:id="selectVertexButton" text="Вершина" toggleGroup="$selectionModeGroup" />
+                <ToggleButton fx:id="selectPolygonButton" text="Полигон" toggleGroup="$selectionModeGroup" />
+            </HBox>
+
+            <Button fx:id="deleteSelectedButton" text="Удалить выделенное" style="-fx-background-color: #e74c3c;" />
         </VBox>
     </left>
 
     <center>
-        <Pane fx:id="renderPane" style="-fx-background-color: lightgray;"/>
+        <AnchorPane fx:id="viewportPane" style="-fx-background-color: #1a1a1a;" />
     </center>
 
     <right>
-        <TabPane>
-            <Tab text="Transform">
-                <VBox spacing="10" style="-fx-padding: 10;">
-                    <Label text="Translation"/>
-                    <Slider fx:id="sliderTranslateX" min="-10" max="10" value="0"/>
-                    <TextField fx:id="fieldTranslateX" text="0.0"/>
-                    <Button text="Apply" fx:id="btnApplyTranslation"/>
+        <VBox fx:id="transformationPanel" spacing="10" style="-fx-padding: 10; -fx-min-width: 200;">
+            <Label text="Трансформации" style="-fx-font-weight: bold;" />
+
+            <TitledPane text="Перемещение" expanded="false">
+                <VBox spacing="5">
+                    <Label text="X:" />
+                    <Slider min="-10" max="10" value="0" />
+                    <Label text="Y:" />
+                    <Slider min="-10" max="10" value="0" />
+                    <Label text="Z:" />
+                    <Slider min="-10" max="10" value="0" />
                 </VBox>
-            </Tab>
-        </TabPane>
+            </TitledPane>
+
+            <TitledPane text="Вращение" expanded="false">
+                <VBox spacing="5">
+                    <Label text="X (градусы):" />
+                    <Slider min="-180" max="180" value="0" />
+                    <Label text="Y (градусы):" />
+                    <Slider min="-180" max="180" value="0" />
+                    <Label text="Z (градусы):" />
+                    <Slider min="-180" max="180" value="0" />
+                </VBox>
+            </TitledPane>
+
+            <TitledPane text="Масштаб" expanded="false">
+                <VBox spacing="5">
+                    <Label text="Масштаб:" />
+                    <Slider min="0.1" max="5" value="1" />
+                    <CheckBox text="Сохранять пропорции" selected="true" />
+                </VBox>
+            </TitledPane>
+        </VBox>
     </right>
 
+    <bottom>
+        <StatusBar>
+            <Label text="Готов" />
+            <Pane HBox.hgrow="ALWAYS" />
+            <Label text="Моделей: 0" fx:id="modelCountLabel" />
+        </StatusBar>
+    </bottom>
 </BorderPane>
