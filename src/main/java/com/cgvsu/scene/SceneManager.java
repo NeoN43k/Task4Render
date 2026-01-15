@@ -79,4 +79,5 @@ public class SceneManager {
     public boolean isModelSelected(int index) {
         return selectedModelIndices.contains(index);
     }
+
 }

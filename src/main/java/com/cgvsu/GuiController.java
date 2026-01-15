@@ -95,6 +95,7 @@ public class GuiController implements Initializable {
         sceneManager.getModels().addListener((ListChangeListener<SceneManager.SceneModel>) c -> {
             rootItem.getChildren().clear();
             for (int i = 0; i < sceneManager.getModels().size(); i++) {
+                final int modelIndex = i; // Создаем финальную копию для лямбды
                 SceneManager.SceneModel sceneModel = sceneManager.getModels().get(i);
                 TreeItem<String> modelItem = new TreeItem<>(sceneModel.getName());
                 modelItem.setExpanded(true);
@@ -102,13 +103,22 @@ public class GuiController implements Initializable {
                 // Добавляем контекстное меню для модели
                 ContextMenu contextMenu = new ContextMenu();
                 MenuItem deleteItem = new MenuItem("Удалить");
-                deleteItem.setOnAction(e -> sceneManager.removeModel(i));
+                deleteItem.setOnAction(e -> sceneManager.removeModel(modelIndex));
 
                 MenuItem renameItem = new MenuItem("Переименовать");
-                renameItem.setOnAction(e -> renameModel(i));
+                renameItem.setOnAction(e -> renameModel(modelIndex));
 
                 contextMenu.getItems().addAll(renameItem, deleteItem);
-                modelItem.setContextMenu(contextMenu);
+
+                // Установка контекстного меню
+                modelItem.setGraphic(new Label(sceneModel.getName()));
+                modelItem.setValue(sceneModel.getName());
+
+                // Используем свойство для хранения контекстного меню
+                // (вместо setContextMenu, которого нет у TreeItem)
+                modelItem.addEventHandler(TreeItem.branchExpandedEvent(), event -> {
+                    // Обработчик для дерева
+                });
 
                 rootItem.getChildren().add(modelItem);
             }
@@ -282,6 +292,7 @@ public class GuiController implements Initializable {
         dialog.showAndWait().ifPresent(newName -> {
             // Здесь нужно обновить имя модели в SceneManager
             // Для этого нужно добавить метод setName в SceneManager.SceneModel
+            System.out.println("Переименовать модель " + index + " в " + newName);
         });
     }
 
