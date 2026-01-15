@@ -51,6 +51,9 @@ public class GuiController implements Initializable {
     private VBox transformationPanel;
 
     @FXML
+    private ToggleButton selectModelButton;
+
+    @FXML
     private ToggleButton selectVertexButton;
 
     @FXML
@@ -59,17 +62,29 @@ public class GuiController implements Initializable {
     @FXML
     private Button deleteSelectedButton;
 
+    @FXML
+    private Label modelCountLabel;
+
     private SceneManager sceneManager;
     private Stage primaryStage;
+    private ToggleGroup selectionModeGroup;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         sceneManager = new SceneManager();
+        selectionModeGroup = new ToggleGroup();
+
         setupUI();
         setupEventHandlers();
     }
 
     private void setupUI() {
+        // Настройка группы переключателей
+        selectModelButton.setToggleGroup(selectionModeGroup);
+        selectVertexButton.setToggleGroup(selectionModeGroup);
+        selectPolygonButton.setToggleGroup(selectionModeGroup);
+        selectModelButton.setSelected(true);
+
         // Инициализация TreeView для моделей
         TreeItem<String> rootItem = new TreeItem<>("Сцена");
         rootItem.setExpanded(true);
@@ -84,15 +99,31 @@ public class GuiController implements Initializable {
                 TreeItem<String> modelItem = new TreeItem<>(sceneModel.getName());
                 modelItem.setExpanded(true);
 
-                // Добавляем чекбокс для видимости
-                CheckBox visibilityCheck = new CheckBox();
-                visibilityCheck.setSelected(sceneModel.isVisible());
-                visibilityCheck.selectedProperty().addListener((obs, oldVal, newVal) -> {
-                    sceneModel.setVisible(newVal);
-                    // Обновить отрисовку
-                });
+                // Добавляем контекстное меню для модели
+                ContextMenu contextMenu = new ContextMenu();
+                MenuItem deleteItem = new MenuItem("Удалить");
+                deleteItem.setOnAction(e -> sceneManager.removeModel(i));
+
+                MenuItem renameItem = new MenuItem("Переименовать");
+                renameItem.setOnAction(e -> renameModel(i));
+
+                contextMenu.getItems().addAll(renameItem, deleteItem);
+                modelItem.setContextMenu(contextMenu);
 
                 rootItem.getChildren().add(modelItem);
+            }
+
+            // Обновляем счетчик моделей
+            updateModelCount();
+        });
+
+        // Слушатель выбора в TreeView
+        modelTreeView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && modelTreeView.getRoot() != null) {
+                int index = modelTreeView.getRoot().getChildren().indexOf(newVal);
+                if (index >= 0) {
+                    sceneManager.selectModel(index);
+                }
             }
         });
     }
@@ -105,17 +136,6 @@ public class GuiController implements Initializable {
         darkThemeMenuItem.setOnAction(event -> toggleTheme());
 
         deleteSelectedButton.setOnAction(event -> deleteSelectedElements());
-
-        // Множественный выбор в TreeView
-        modelTreeView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-        modelTreeView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null) {
-                int index = modelTreeView.getRoot().getChildren().indexOf(newVal);
-                if (index >= 0) {
-                    sceneManager.selectModel(index);
-                }
-            }
-        });
     }
 
     @FXML
@@ -160,10 +180,13 @@ public class GuiController implements Initializable {
                 new FileChooser.ExtensionFilter("OBJ Files", "*.obj")
         );
 
+        // Установить имя файла по умолчанию
+        SceneManager.SceneModel selectedModel = sceneManager.getSelectedModels().get(0);
+        fileChooser.setInitialFileName(selectedModel.getName() + ".obj");
+
         File file = fileChooser.showSaveDialog(primaryStage);
         if (file != null) {
             try {
-                SceneManager.SceneModel selectedModel = sceneManager.getSelectedModels().get(0);
                 Model modelToSave = selectedModel.getModel();
 
                 if (options.applyTransformations()) {
@@ -188,33 +211,88 @@ public class GuiController implements Initializable {
 
     @FXML
     private void toggleTheme() {
+        try {
+            if (darkThemeMenuItem.isSelected()) {
+                mainPane.getStylesheets().remove(getClass().getResource("/com/cgvsu/theme/LightTheme.css").toExternalForm());
+                mainPane.getStylesheets().add(getClass().getResource("/com/cgvsu/theme/DarkTheme.css").toExternalForm());
+            } else {
+                mainPane.getStylesheets().remove(getClass().getResource("/com/cgvsu/theme/DarkTheme.css").toExternalForm());
+                mainPane.getStylesheets().add(getClass().getResource("/com/cgvsu/theme/LightTheme.css").toExternalForm());
+            }
+        } catch (Exception e) {
+            System.err.println("Ошибка при переключении темы: " + e.getMessage());
+            // Создаем простые стили программно, если CSS файлы не найдены
+            applyFallbackTheme();
+        }
+    }
+
+    private void applyFallbackTheme() {
         if (darkThemeMenuItem.isSelected()) {
-            mainPane.getStylesheets().remove("com/cgvsu/theme/LightTheme.css");
-            mainPane.getStylesheets().add("com/cgvsu/theme/DarkTheme.css");
+            // Простая темная тема
+            mainPane.setStyle("-fx-background-color: #2b2b2b;");
+            menuBar.setStyle("-fx-background-color: #3c3c3c;");
         } else {
-            mainPane.getStylesheets().remove("com/cgvsu/theme/DarkTheme.css");
-            mainPane.getStylesheets().add("com/cgvsu/theme/LightTheme.css");
+            // Простая светлая тема
+            mainPane.setStyle("-fx-background-color: #f5f5f5;");
+            menuBar.setStyle("-fx-background-color: #ffffff;");
         }
     }
 
     @FXML
     private void deleteSelectedElements() {
-        if (selectVertexButton.isSelected()) {
-            // Удалить выбранные вершины
-        } else if (selectPolygonButton.isSelected()) {
-            // Удалить выбранные полигоны
-        } else {
-            // Удалить выбранные модели
-            for (int index : sceneManager.getSelectedIndices()) {
-                sceneManager.removeModel(index);
-            }
+        String mode = getSelectionMode();
+
+        switch (mode) {
+            case "MODEL":
+                // Удалить выбранные модели
+                for (int index : sceneManager.getSelectedIndices()) {
+                    sceneManager.removeModel(index);
+                }
+                break;
+            case "VERTEX":
+                // Удалить выбранные вершины
+                // (реализация требует работы с EditableModel)
+                break;
+            case "POLYGON":
+                // Удалить выбранные полигоны
+                // (реализация требует работы с EditableModel)
+                break;
         }
+
         renderScene();
+        updateModelCount();
+    }
+
+    private String getSelectionMode() {
+        if (selectVertexButton.isSelected()) {
+            return "VERTEX";
+        } else if (selectPolygonButton.isSelected()) {
+            return "POLYGON";
+        } else {
+            return "MODEL";
+        }
+    }
+
+    private void renameModel(int index) {
+        TextInputDialog dialog = new TextInputDialog(sceneManager.getModels().get(index).getName());
+        dialog.setTitle("Переименовать модель");
+        dialog.setHeaderText("Введите новое имя модели:");
+        dialog.setContentText("Имя:");
+
+        dialog.showAndWait().ifPresent(newName -> {
+            // Здесь нужно обновить имя модели в SceneManager
+            // Для этого нужно добавить метод setName в SceneManager.SceneModel
+        });
+    }
+
+    private void updateModelCount() {
+        modelCountLabel.setText("Моделей: " + sceneManager.getModels().size());
     }
 
     private void renderScene() {
         // Здесь будет вызов рендерера для отрисовки всех видимых моделей
         // (реализуется третьим студентом)
+        System.out.println("Рендеринг сцены...");
     }
 
     public void setPrimaryStage(Stage stage) {
