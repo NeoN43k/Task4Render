@@ -1,118 +1,127 @@
 package com.cgvsu;
 
-import com.cgvsu.render_engine.RenderEngine;
 import javafx.fxml.FXML;
-import javafx.animation.Animation;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
-import javafx.event.ActionEvent;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.layout.AnchorPane;
+import javafx.fxml.Initializable;
+import javafx.scene.control.*;
+import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
-import javafx.stage.FileChooser;
-import javafx.util.Duration;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.io.IOException;
-import java.io.File;
-import javax.vecmath.Vector3f;
+import java.net.URL;
+import java.util.ResourceBundle;
 
-import com.cgvsu.model.Model;
-import com.cgvsu.objreader.ObjReader;
-import com.cgvsu.render_engine.Camera;
+public class GuiController implements Initializable {
 
-public class GuiController {
+    // === Левая панель ===
+    @FXML private TreeView<String> sceneTree;
+    @FXML private Button btnAdd;
+    @FXML private Button btnDelete;
 
-    final private float TRANSLATION = 0.5F;
+    // === Центральная панель ===
+    @FXML private Pane renderPane;
 
-    @FXML
-    AnchorPane anchorPane;
+    // === Правая панель ===
+    @FXML private Slider sliderTranslateX;
+    @FXML private TextField fieldTranslateX;
+    @FXML private Button btnApplyTranslation;
 
-    @FXML
-    private Canvas canvas;
+    // === Меню ===
+    @FXML private MenuItem menuOpen;
+    @FXML private MenuItem menuSave;
+    @FXML private MenuItem menuExit;
 
-    private Model mesh = null;
+    private Stage primaryStage;
 
-    private Camera camera = new Camera(
-            new Vector3f(0, 00, 100),
-            new Vector3f(0, 0, 0),
-            1.0F, 1, 0.01F, 100);
-
-    private Timeline timeline;
-
-    @FXML
-    private void initialize() {
-        anchorPane.prefWidthProperty().addListener((ov, oldValue, newValue) -> canvas.setWidth(newValue.doubleValue()));
-        anchorPane.prefHeightProperty().addListener((ov, oldValue, newValue) -> canvas.setHeight(newValue.doubleValue()));
-
-        timeline = new Timeline();
-        timeline.setCycleCount(Animation.INDEFINITE);
-
-        KeyFrame frame = new KeyFrame(Duration.millis(15), event -> {
-            double width = canvas.getWidth();
-            double height = canvas.getHeight();
-
-            canvas.getGraphicsContext2D().clearRect(0, 0, width, height);
-            camera.setAspectRatio((float) (width / height));
-
-            if (mesh != null) {
-                RenderEngine.render(canvas.getGraphicsContext2D(), camera, mesh, (int) width, (int) height);
-            }
-        });
-
-        timeline.getKeyFrames().add(frame);
-        timeline.play();
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
+        setupEventHandlers();
+        initSceneTree();
     }
 
-    @FXML
-    private void onOpenModelMenuItemClick() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Model (*.obj)", "*.obj"));
-        fileChooser.setTitle("Load Model");
+    private void setupEventHandlers() {
+        // === Связывание слайдера и текстового поля ===
+        if (sliderTranslateX != null && fieldTranslateX != null) {
+            fieldTranslateX.textProperty().addListener((obs, oldVal, newVal) -> {
+                try {
+                    double value = Double.parseDouble(newVal);
+                    if (value >= sliderTranslateX.getMin() && value <= sliderTranslateX.getMax()) {
+                        sliderTranslateX.setValue(value);
+                    }
+                } catch (NumberFormatException e) {
+                    // Игнорируем неверный ввод
+                }
+            });
 
-        File file = fileChooser.showOpenDialog((Stage) canvas.getScene().getWindow());
-        if (file == null) {
-            return;
+            sliderTranslateX.valueProperty().addListener((obs, oldVal, newVal) -> {
+                fieldTranslateX.setText(String.format("%.2f", newVal.doubleValue()));
+            });
         }
 
-        Path fileName = Path.of(file.getAbsolutePath());
+        // === Кнопки ===
+        if (btnApplyTranslation != null) {
+            btnApplyTranslation.setOnAction(e -> {
+                System.out.println("Применить перемещение: " +
+                        (fieldTranslateX != null ? fieldTranslateX.getText() : "0.0"));
+            });
+        }
 
-        try {
-            String fileContent = Files.readString(fileName);
-            mesh = ObjReader.read(fileContent);
-            // todo: обработка ошибок
-        } catch (IOException exception) {
+        if (btnAdd != null) {
+            btnAdd.setOnAction(e -> System.out.println("Добавить модель"));
+        }
 
+        if (btnDelete != null) {
+            btnDelete.setOnAction(e -> System.out.println("Удалить модель"));
+        }
+
+        // === Меню ===
+        if (menuOpen != null) {
+            menuOpen.setOnAction(e -> System.out.println("Меню: Открыть"));
+        }
+
+        if (menuSave != null) {
+            menuSave.setOnAction(e -> System.out.println("Меню: Сохранить"));
+        }
+
+        if (menuExit != null) {
+            menuExit.setOnAction(e -> {
+                if (primaryStage != null) {
+                    primaryStage.close();
+                }
+            });
         }
     }
 
-    @FXML
-    public void handleCameraForward(ActionEvent actionEvent) {
-        camera.movePosition(new Vector3f(0, 0, -TRANSLATION));
+    private void initSceneTree() {
+        if (sceneTree != null) {
+            TreeItem<String> root = new TreeItem<>("Сцена");
+            root.setExpanded(true);
+
+            TreeItem<String> models = new TreeItem<>("Модели");
+            models.setExpanded(true);
+
+            // Примерные модели для демонстрации
+            TreeItem<String> model1 = new TreeItem<>("Куб (cube.obj)");
+            TreeItem<String> model2 = new TreeItem<>("Сфера (sphere.obj)");
+
+            models.getChildren().addAll(model1, model2);
+
+            TreeItem<String> cameras = new TreeItem<>("Камеры");
+            TreeItem<String> camera1 = new TreeItem<>("Основная камера");
+            cameras.getChildren().add(camera1);
+
+            root.getChildren().addAll(models, cameras);
+            sceneTree.setRoot(root);
+
+            // Обработка выбора в дереве
+            sceneTree.getSelectionModel().selectedItemProperty().addListener(
+                    (obs, oldVal, newVal) -> {
+                        if (newVal != null) {
+                            System.out.println("Выбрано: " + newVal.getValue());
+                        }
+                    }
+            );
+        }
     }
 
-    @FXML
-    public void handleCameraBackward(ActionEvent actionEvent) {
-        camera.movePosition(new Vector3f(0, 0, TRANSLATION));
-    }
-
-    @FXML
-    public void handleCameraLeft(ActionEvent actionEvent) {
-        camera.movePosition(new Vector3f(TRANSLATION, 0, 0));
-    }
-
-    @FXML
-    public void handleCameraRight(ActionEvent actionEvent) {
-        camera.movePosition(new Vector3f(-TRANSLATION, 0, 0));
-    }
-
-    @FXML
-    public void handleCameraUp(ActionEvent actionEvent) {
-        camera.movePosition(new Vector3f(0, TRANSLATION, 0));
-    }
-
-    @FXML
-    public void handleCameraDown(ActionEvent actionEvent) {
-        camera.movePosition(new Vector3f(0, -TRANSLATION, 0));
+    public void setPrimaryStage(Stage stage) {
+        this.primaryStage = stage;
     }
 }
