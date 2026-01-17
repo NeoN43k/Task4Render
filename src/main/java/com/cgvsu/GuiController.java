@@ -2,6 +2,7 @@ package com.cgvsu;
 
 import com.cgvsu.objreader.ObjReader;
 import com.cgvsu.objwriter.ObjWriter;
+import com.cgvsu.render_engine.*;
 import com.cgvsu.scene.SceneManager;
 import com.cgvsu.dialogs.ErrorDialog;
 import com.cgvsu.dialogs.SaveOptionsDialog;
@@ -9,46 +10,22 @@ import com.cgvsu.model.Model;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.canvas.Canvas;
 import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.ResourceBundle;
 
 public class GuiController implements Initializable {
-
-    @FXML
-    private Canvas viewportCanvas;
-
-    @FXML
-    private CheckMenuItem wireframeMenuItem;
-
-    @FXML
-    private CheckMenuItem textureMenuItem;
-
-    @FXML
-    private CheckMenuItem lightingMenuItem;
-
-    @FXML
-    private ColorPicker modelColorPicker;
-
-    @FXML
-    private Button loadTextureButton;
-
-    @FXML
-    private ComboBox<String> renderModeComboBox;
-
-    @FXML
-    private MenuItem addCameraMenuItem;
-
-    @FXML
-    private MenuItem removeCameraMenuItem;
 
     @FXML
     private BorderPane mainPane;
@@ -69,10 +46,34 @@ public class GuiController implements Initializable {
     private CheckMenuItem darkThemeMenuItem;
 
     @FXML
+    private CheckMenuItem wireframeMenuItem;
+
+    @FXML
+    private CheckMenuItem textureMenuItem;
+
+    @FXML
+    private CheckMenuItem lightingMenuItem;
+
+    @FXML
+    private MenuItem addCameraMenuItem;
+
+    @FXML
+    private MenuItem removeCameraMenuItem;
+
+    @FXML
+    private MenuItem toggleCameraVisibilityItem;
+
+    @FXML
     private AnchorPane viewportPane;
 
     @FXML
+    private Canvas viewportCanvas;
+
+    @FXML
     private TreeView<String> modelTreeView;
+
+    @FXML
+    private TreeView<String> cameraTreeView;
 
     @FXML
     private VBox transformationPanel;
@@ -92,9 +93,26 @@ public class GuiController implements Initializable {
     @FXML
     private Label modelCountLabel;
 
+    @FXML
+    private Label cameraCountLabel;
+
+    @FXML
+    private ComboBox<String> renderModeComboBox;
+
+    @FXML
+    private ColorPicker modelColorPicker;
+
+    @FXML
+    private Button loadTextureButton;
+
+    @FXML
+    private CheckBox showCamerasCheckBox;
+
     private SceneManager sceneManager;
     private Stage primaryStage;
     private ToggleGroup selectionModeGroup;
+    private Texture currentTexture;
+    private boolean showCameras = false;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -103,6 +121,7 @@ public class GuiController implements Initializable {
 
         setupUI();
         setupEventHandlers();
+        setupRenderControls();
     }
 
     private void setupUI() {
@@ -113,56 +132,141 @@ public class GuiController implements Initializable {
         selectModelButton.setSelected(true);
 
         // Инициализация TreeView для моделей
-        TreeItem<String> rootItem = new TreeItem<>("Сцена");
-        rootItem.setExpanded(true);
-        modelTreeView.setRoot(rootItem);
-        modelTreeView.setShowRoot(false);
+        setupModelTreeView();
+
+        // Инициализация TreeView для камер
+        setupCameraTreeView();
 
         // Слушатель изменений в списке моделей
         sceneManager.getModels().addListener((ListChangeListener<SceneManager.SceneModel>) c -> {
-            rootItem.getChildren().clear();
-            for (int i = 0; i < sceneManager.getModels().size(); i++) {
-                final int modelIndex = i; // Создаем финальную копию для лямбды
-                SceneManager.SceneModel sceneModel = sceneManager.getModels().get(i);
-                TreeItem<String> modelItem = new TreeItem<>(sceneModel.getName());
-                modelItem.setExpanded(true);
-
-                // Добавляем контекстное меню для модели
-                ContextMenu contextMenu = new ContextMenu();
-                MenuItem deleteItem = new MenuItem("Удалить");
-                deleteItem.setOnAction(e -> sceneManager.removeModel(modelIndex));
-
-                MenuItem renameItem = new MenuItem("Переименовать");
-                renameItem.setOnAction(e -> renameModel(modelIndex));
-
-                contextMenu.getItems().addAll(renameItem, deleteItem);
-
-                // Установка контекстного меню
-                modelItem.setGraphic(new Label(sceneModel.getName()));
-                modelItem.setValue(sceneModel.getName());
-
-                // Используем свойство для хранения контекстного меню
-                // (вместо setContextMenu, которого нет у TreeItem)
-                modelItem.addEventHandler(TreeItem.branchExpandedEvent(), event -> {
-                    // Обработчик для дерева
-                });
-
-                rootItem.getChildren().add(modelItem);
-            }
-
-            // Обновляем счетчик моделей
+            updateModelTreeView();
             updateModelCount();
         });
 
-        // Слушатель выбора в TreeView
+        // Слушатель для камер
+        showCamerasCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            showCameras = newVal;
+            renderScene();
+        });
+    }
+
+    private void setupModelTreeView() {
+        TreeItem<String> rootItem = new TreeItem<>("Модели сцены");
+        rootItem.setExpanded(true);
+        modelTreeView.setRoot(rootItem);
+        modelTreeView.setShowRoot(true);
+
         modelTreeView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null && modelTreeView.getRoot() != null) {
-                int index = modelTreeView.getRoot().getChildren().indexOf(newVal);
-                if (index >= 0) {
-                    sceneManager.selectModel(index);
+            if (newVal != null && newVal.getParent() != null) {
+                if (newVal.getParent().getValue().equals("Модели сцены")) {
+                    int index = modelTreeView.getRoot().getChildren().indexOf(newVal);
+                    if (index >= 0) {
+                        if (selectModelButton.isSelected()) {
+                            sceneManager.selectModel(index);
+                        }
+                    }
                 }
             }
         });
+    }
+
+    private void setupCameraTreeView() {
+        TreeItem<String> rootItem = new TreeItem<>("Камеры");
+        rootItem.setExpanded(true);
+        cameraTreeView.setRoot(rootItem);
+        cameraTreeView.setShowRoot(true);
+
+        cameraTreeView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && newVal.getParent() != null) {
+                if (newVal.getParent().getValue().equals("Камеры")) {
+                    int index = cameraTreeView.getRoot().getChildren().indexOf(newVal);
+                    if (index >= 0) {
+                        sceneManager.setCurrentCamera(index);
+                        renderScene();
+                    }
+                }
+            }
+        });
+    }
+
+    private void updateModelTreeView() {
+        TreeItem<String> root = modelTreeView.getRoot();
+        root.getChildren().clear();
+
+        for (int i = 0; i < sceneManager.getModels().size(); i++) {
+            SceneManager.SceneModel sceneModel = sceneManager.getModels().get(i);
+            TreeItem<String> modelItem = new TreeItem<>(sceneModel.getName());
+
+            // Добавляем информацию о модели
+            TreeItem<String> verticesItem = new TreeItem<>("Вершин: " + sceneModel.getModel().getVertexCount());
+            TreeItem<String> polygonsItem = new TreeItem<>("Полигонов: " + sceneModel.getModel().getPolygonCount());
+            TreeItem<String> visibilityItem = new TreeItem<>("Видима: " + (sceneModel.isVisible() ? "Да" : "Нет"));
+
+            modelItem.getChildren().addAll(verticesItem, polygonsItem, visibilityItem);
+            root.getChildren().add(modelItem);
+        }
+    }
+
+    private void updateCameraTreeView() {
+        TreeItem<String> root = cameraTreeView.getRoot();
+        root.getChildren().clear();
+
+        for (int i = 0; i < sceneManager.getCameraCount(); i++) {
+            String cameraName = "Камера " + (i + 1);
+            if (i == sceneManager.getCurrentCameraIndex()) {
+                cameraName += " (активная)";
+            }
+            TreeItem<String> cameraItem = new TreeItem<>(cameraName);
+            root.getChildren().add(cameraItem);
+        }
+    }
+
+    private void setupRenderControls() {
+        // Инициализация ColorPicker
+        modelColorPicker.setValue(Color.LIGHTGRAY);
+        modelColorPicker.setOnAction(event -> {
+            RenderEngine.setModelColor(modelColorPicker.getValue());
+            renderScene();
+        });
+
+        // Инициализация ComboBox с режимами рендеринга
+        renderModeComboBox.getItems().addAll(
+                "Только сетка",
+                "Заливка цветом",
+                "Только текстура",
+                "Освещение + цвет",
+                "Освещение + текстура",
+                "Все эффекты"
+        );
+        renderModeComboBox.setValue("Заливка цветом");
+        renderModeComboBox.setOnAction(event -> {
+            updateRenderModeFromComboBox();
+        });
+
+        // Инициализация CheckMenuItems
+        wireframeMenuItem.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            updateRenderModeFromCheckboxes();
+        });
+
+        textureMenuItem.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            updateRenderModeFromCheckboxes();
+        });
+
+        lightingMenuItem.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            updateRenderModeFromCheckboxes();
+        });
+
+        // Кнопка загрузки текстуры
+        loadTextureButton.setOnAction(event -> loadTexture());
+
+        // Управление камерами
+        addCameraMenuItem.setOnAction(event -> addCamera());
+        removeCameraMenuItem.setOnAction(event -> removeCamera());
+        toggleCameraVisibilityItem.setOnAction(event -> toggleCameraVisibility());
+
+        // Инициализация состояния рендеринга
+        RenderEngine.setRenderMode(RenderModes.SOLID_COLOR);
+        RenderEngine.setModelColor(modelColorPicker.getValue());
     }
 
     private void setupEventHandlers() {
@@ -173,6 +277,79 @@ public class GuiController implements Initializable {
         darkThemeMenuItem.setOnAction(event -> toggleTheme());
 
         deleteSelectedButton.setOnAction(event -> deleteSelectedElements());
+    }
+
+    private void updateRenderModeFromComboBox() {
+        String selected = renderModeComboBox.getValue();
+        if (selected != null) {
+            switch (selected) {
+                case "Только сетка":
+                    RenderEngine.setRenderMode(RenderModes.WIREFRAME);
+                    wireframeMenuItem.setSelected(true);
+                    textureMenuItem.setSelected(false);
+                    lightingMenuItem.setSelected(false);
+                    break;
+                case "Заливка цветом":
+                    RenderEngine.setRenderMode(RenderModes.SOLID_COLOR);
+                    wireframeMenuItem.setSelected(false);
+                    textureMenuItem.setSelected(false);
+                    lightingMenuItem.setSelected(false);
+                    break;
+                case "Только текстура":
+                    RenderEngine.setRenderMode(RenderModes.TEXTURED);
+                    wireframeMenuItem.setSelected(false);
+                    textureMenuItem.setSelected(true);
+                    lightingMenuItem.setSelected(false);
+                    break;
+                case "Освещение + цвет":
+                    RenderEngine.setRenderMode(RenderModes.LIT_SOLID);
+                    wireframeMenuItem.setSelected(false);
+                    textureMenuItem.setSelected(false);
+                    lightingMenuItem.setSelected(true);
+                    break;
+                case "Освещение + текстура":
+                    RenderEngine.setRenderMode(RenderModes.LIT_TEXTURED);
+                    wireframeMenuItem.setSelected(false);
+                    textureMenuItem.setSelected(true);
+                    lightingMenuItem.setSelected(true);
+                    break;
+                case "Все эффекты":
+                    RenderEngine.setRenderMode(RenderModes.FULL);
+                    wireframeMenuItem.setSelected(true);
+                    textureMenuItem.setSelected(true);
+                    lightingMenuItem.setSelected(true);
+                    break;
+            }
+            renderScene();
+        }
+    }
+
+    private void updateRenderModeFromCheckboxes() {
+        boolean wireframe = wireframeMenuItem.isSelected();
+        boolean texture = textureMenuItem.isSelected();
+        boolean lighting = lightingMenuItem.isSelected();
+
+        if (wireframe && texture && lighting) {
+            RenderEngine.setRenderMode(RenderModes.FULL);
+            renderModeComboBox.setValue("Все эффекты");
+        } else if (wireframe && !texture && !lighting) {
+            RenderEngine.setRenderMode(RenderModes.WIREFRAME);
+            renderModeComboBox.setValue("Только сетка");
+        } else if (!wireframe && texture && !lighting) {
+            RenderEngine.setRenderMode(RenderModes.TEXTURED);
+            renderModeComboBox.setValue("Только текстура");
+        } else if (!wireframe && !texture && lighting) {
+            RenderEngine.setRenderMode(RenderModes.LIT_SOLID);
+            renderModeComboBox.setValue("Освещение + цвет");
+        } else if (!wireframe && texture && lighting) {
+            RenderEngine.setRenderMode(RenderModes.LIT_TEXTURED);
+            renderModeComboBox.setValue("Освещение + текстура");
+        } else {
+            RenderEngine.setRenderMode(RenderModes.SOLID_COLOR);
+            renderModeComboBox.setValue("Заливка цветом");
+        }
+
+        renderScene();
     }
 
     @FXML
@@ -258,21 +435,67 @@ public class GuiController implements Initializable {
             }
         } catch (Exception e) {
             System.err.println("Ошибка при переключении темы: " + e.getMessage());
-            // Создаем простые стили программно, если CSS файлы не найдены
             applyFallbackTheme();
         }
     }
 
     private void applyFallbackTheme() {
         if (darkThemeMenuItem.isSelected()) {
-            // Простая темная тема
             mainPane.setStyle("-fx-background-color: #2b2b2b;");
             menuBar.setStyle("-fx-background-color: #3c3c3c;");
         } else {
-            // Простая светлая тема
             mainPane.setStyle("-fx-background-color: #f5f5f5;");
             menuBar.setStyle("-fx-background-color: #ffffff;");
         }
+    }
+
+    @FXML
+    private void loadTexture() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Выбрать текстуру");
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.bmp")
+        );
+
+        File file = fileChooser.showOpenDialog(primaryStage);
+        if (file != null) {
+            try {
+                currentTexture = new Texture(file.getAbsolutePath());
+                RenderEngine.setTexture(currentTexture);
+                textureMenuItem.setSelected(true);
+                updateRenderModeFromCheckboxes();
+                renderScene();
+            } catch (Exception e) {
+                ErrorDialog.show("Ошибка загрузки текстуры", e.getMessage());
+            }
+        }
+    }
+
+    @FXML
+    private void addCamera() {
+        sceneManager.addCamera();
+        updateCameraTreeView();
+        updateCameraCount();
+        renderScene();
+    }
+
+    @FXML
+    private void removeCamera() {
+        if (sceneManager.getCameraCount() > 1) {
+            sceneManager.removeCurrentCamera();
+            updateCameraTreeView();
+            updateCameraCount();
+            renderScene();
+        } else {
+            ErrorDialog.show("Ошибка", "Нельзя удалить последнюю камеру");
+        }
+    }
+
+    @FXML
+    private void toggleCameraVisibility() {
+        showCameras = !showCameras;
+        showCamerasCheckBox.setSelected(showCameras);
+        renderScene();
     }
 
     @FXML
@@ -282,7 +505,9 @@ public class GuiController implements Initializable {
         switch (mode) {
             case "MODEL":
                 // Удалить выбранные модели
-                for (int index : sceneManager.getSelectedIndices()) {
+                ArrayList<Integer> indicesToRemove = new ArrayList<>(sceneManager.getSelectedIndices());
+                indicesToRemove.sort((a, b) -> b - a); // Удаляем с конца
+                for (int index : indicesToRemove) {
                     sceneManager.removeModel(index);
                 }
                 break;
@@ -310,27 +535,25 @@ public class GuiController implements Initializable {
         }
     }
 
-    private void renameModel(int index) {
-        TextInputDialog dialog = new TextInputDialog(sceneManager.getModels().get(index).getName());
-        dialog.setTitle("Переименовать модель");
-        dialog.setHeaderText("Введите новое имя модели:");
-        dialog.setContentText("Имя:");
-
-        dialog.showAndWait().ifPresent(newName -> {
-            // Здесь нужно обновить имя модели в SceneManager
-            // Для этого нужно добавить метод setName в SceneManager.SceneModel
-            System.out.println("Переименовать модель " + index + " в " + newName);
-        });
-    }
-
     private void updateModelCount() {
         modelCountLabel.setText("Моделей: " + sceneManager.getModels().size());
     }
 
+    private void updateCameraCount() {
+        cameraCountLabel.setText("Камер: " + sceneManager.getCameraCount());
+        updateCameraTreeView();
+    }
+
     private void renderScene() {
-        // Здесь будет вызов рендерера для отрисовки всех видимых моделей
-        // (реализуется третьим студентом)
-        System.out.println("Рендеринг сцены...");
+        if (viewportCanvas != null && sceneManager != null) {
+            // Обновляем визуализацию камер
+            if (showCameras) {
+                sceneManager.updateCameraModels();
+            }
+
+            // Рендерим сцену
+            RenderEngine.renderScene(viewportCanvas, sceneManager.getCurrentCamera(), sceneManager);
+        }
     }
 
     public void setPrimaryStage(Stage stage) {

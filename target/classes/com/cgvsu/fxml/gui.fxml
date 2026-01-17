@@ -2,6 +2,7 @@
 
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.canvas.Canvas?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.text.Font?>
 
@@ -19,8 +20,13 @@
             <Menu text="Вид">
                 <CheckMenuItem fx:id="darkThemeMenuItem" text="Темная тема" />
                 <SeparatorMenuItem />
-                <CheckMenuItem text="Показать сетку" />
-                <CheckMenuItem text="Показать оси" />
+                <CheckMenuItem fx:id="wireframeMenuItem" text="Показать сетку" />
+                <CheckMenuItem fx:id="textureMenuItem" text="Использовать текстуру" />
+                <CheckMenuItem fx:id="lightingMenuItem" text="Использовать освещение" />
+                <SeparatorMenuItem />
+                <MenuItem fx:id="addCameraMenuItem" text="Добавить камеру" />
+                <MenuItem fx:id="removeCameraMenuItem" text="Удалить камеру" />
+                <MenuItem fx:id="toggleCameraVisibilityItem" text="Показать/скрыть камеры" />
             </Menu>
             <Menu text="Редактирование">
                 <MenuItem text="Выделить все" />
@@ -36,9 +42,26 @@
 
     <left>
         <VBox spacing="10" style="-fx-padding: 10;">
-            <Label text="Модели на сцене" style="-fx-font-weight: bold;" />
-            <TreeView fx:id="modelTreeView" VBox.vgrow="ALWAYS"
-                      prefHeight="300" minHeight="200" />
+            <Label text="Модели и камеры" style="-fx-font-weight: bold; -fx-font-size: 14;" />
+
+            <TitledPane text="Модели" expanded="true">
+                <VBox spacing="5" style="-fx-padding: 5;">
+                    <TreeView fx:id="modelTreeView"
+                              prefHeight="200" minHeight="150"
+                              VBox.vgrow="ALWAYS" />
+                </VBox>
+            </TitledPane>
+
+            <TitledPane text="Камеры" expanded="true">
+                <VBox spacing="5" style="-fx-padding: 5;">
+                    <TreeView fx:id="cameraTreeView"
+                              prefHeight="150" minHeight="100"
+                              VBox.vgrow="ALWAYS" />
+                    <HBox spacing="5">
+                        <CheckBox fx:id="showCamerasCheckBox" text="Показать камеры" />
+                    </HBox>
+                </VBox>
+            </TitledPane>
 
             <Separator />
 
@@ -47,9 +70,12 @@
             <VBox spacing="5">
                 <Label text="Режим выделения:" />
                 <HBox spacing="5">
-                    <ToggleButton fx:id="selectModelButton" text="Модель" selected="true" />
-                    <ToggleButton fx:id="selectVertexButton" text="Вершина" />
-                    <ToggleButton fx:id="selectPolygonButton" text="Полигон" />
+                    <ToggleButton fx:id="selectModelButton" text="Модель" selected="true"
+                                  prefWidth="70" />
+                    <ToggleButton fx:id="selectVertexButton" text="Вершина"
+                                  prefWidth="70" />
+                    <ToggleButton fx:id="selectPolygonButton" text="Полигон"
+                                  prefWidth="70" />
                 </HBox>
             </VBox>
 
@@ -62,12 +88,37 @@
     </left>
 
     <center>
-        <AnchorPane fx:id="viewportPane" style="-fx-background-color: #1a1a1a;" />
+        <Canvas fx:id="viewportCanvas" width="800" height="600"
+                style="-fx-background-color: #1a1a1a;" />
     </center>
 
     <right>
-        <VBox fx:id="transformationPanel" spacing="10" style="-fx-padding: 10; -fx-min-width: 200;">
-            <Label text="Трансформации" style="-fx-font-weight: bold;" />
+        <VBox fx:id="transformationPanel" spacing="10" style="-fx-padding: 10; -fx-min-width: 250;">
+            <Label text="Рендеринг" style="-fx-font-weight: bold; -fx-font-size: 14;" />
+
+            <TitledPane text="Настройки отображения" expanded="true">
+                <VBox spacing="10" style="-fx-padding: 10;">
+                    <VBox spacing="5">
+                        <Label text="Режим рендеринга:" />
+                        <ComboBox fx:id="renderModeComboBox" prefWidth="200" />
+                    </VBox>
+
+                    <Separator />
+
+                    <VBox spacing="5">
+                        <Label text="Цвет модели:" />
+                        <ColorPicker fx:id="modelColorPicker" prefWidth="200" />
+                    </VBox>
+
+                    <Separator />
+
+                    <VBox spacing="5">
+                        <Label text="Текстура:" />
+                        <Button fx:id="loadTextureButton" text="Загрузить текстуру"
+                                maxWidth="Infinity" />
+                    </VBox>
+                </VBox>
+            </TitledPane>
 
             <TitledPane text="Перемещение" expanded="false">
                 <VBox spacing="5" style="-fx-padding: 10;">
@@ -77,6 +128,8 @@
                     <Slider min="-10" max="10" value="0" showTickLabels="true" showTickMarks="true" />
                     <Label text="Z:" />
                     <Slider min="-10" max="10" value="0" showTickLabels="true" showTickMarks="true" />
+                    <Button text="Применить" style="-fx-background-color: #3498db; -fx-text-fill: white;"
+                            maxWidth="Infinity" />
                 </VBox>
             </TitledPane>
 
@@ -88,6 +141,8 @@
                     <Slider min="-180" max="180" value="0" showTickLabels="true" showTickMarks="true" />
                     <Label text="Z (градусы):" />
                     <Slider min="-180" max="180" value="0" showTickLabels="true" showTickMarks="true" />
+                    <Button text="Применить" style="-fx-background-color: #3498db; -fx-text-fill: white;"
+                            maxWidth="Infinity" />
                 </VBox>
             </TitledPane>
 
@@ -96,6 +151,8 @@
                     <Label text="Масштаб:" />
                     <Slider min="0.1" max="5" value="1" showTickLabels="true" showTickMarks="true" />
                     <CheckBox text="Сохранять пропорции" selected="true" />
+                    <Button text="Применить" style="-fx-background-color: #3498db; -fx-text-fill: white;"
+                            maxWidth="Infinity" />
                 </VBox>
             </TitledPane>
         </VBox>
@@ -104,14 +161,7 @@
     <bottom>
         <BorderPane style="-fx-background-color: #f0f0f0; -fx-padding: 5;">
             <left>
-                <Label text="Готов" style="-fx-padding: 0 10 0 0;" />
-            </left>
-            <center>
-                <Pane BorderPane.alignment="CENTER" />
-            </center>
-            <right>
-                <Label fx:id="modelCountLabel" text="Моделей: 0" style="-fx-padding: 0 10 0 0;" />
-            </right>
-        </BorderPane>
-    </bottom>
-</BorderPane>
+                <HBox spacing="10" style="-fx-padding: 0 10;">
+                    <Label fx:id="modelCountLabel" text="Моделей: 0" />
+                    <Label fx:id="cameraCountLabel" text="Камер: 1" />
+                </HBox
