@@ -24,6 +24,33 @@ import java.util.ResourceBundle;
 public class GuiController implements Initializable {
 
     @FXML
+    private Canvas viewportCanvas;
+
+    @FXML
+    private CheckMenuItem wireframeMenuItem;
+
+    @FXML
+    private CheckMenuItem textureMenuItem;
+
+    @FXML
+    private CheckMenuItem lightingMenuItem;
+
+    @FXML
+    private ColorPicker modelColorPicker;
+
+    @FXML
+    private Button loadTextureButton;
+
+    @FXML
+    private ComboBox<String> renderModeComboBox;
+
+    @FXML
+    private MenuItem addCameraMenuItem;
+
+    @FXML
+    private MenuItem removeCameraMenuItem;
+
+    @FXML
     private BorderPane mainPane;
 
     @FXML
