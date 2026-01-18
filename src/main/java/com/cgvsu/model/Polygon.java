@@ -15,6 +15,13 @@ public class Polygon {
         normalIndices = new ArrayList<Integer>();
     }
 
+    // Конструктор для глубокого копирования
+    public Polygon(Polygon other) {
+        this.vertexIndices = new ArrayList<>(other.vertexIndices);
+        this.textureVertexIndices = new ArrayList<>(other.textureVertexIndices);
+        this.normalIndices = new ArrayList<>(other.normalIndices);
+    }
+
     public void setVertexIndices(ArrayList<Integer> vertexIndices) {
         assert vertexIndices.size() >= 3;
         this.vertexIndices = vertexIndices;

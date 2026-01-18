@@ -1,0 +1,116 @@
+.root {
+    -fx-base: #2b2b2b;
+    -fx-background: #3c3f41;
+    -fx-control-inner-background: #2b2b2b;
+    -fx-text-fill: white;
+}
+
+.button {
+    -fx-background-color: #3c3f41;
+    -fx-text-fill: white;
+}
+
+.toggle-button {
+    -fx-background-color: #3c3f41;
+    -fx-text-fill: white;
+}
+
+.canvas {
+    -fx-background-color: #2b2b2b;
+}
+
+.pane {
+    -fx-background-color: #2f4f4f;
+}
+.button, .toggle-button {
+    -fx-background-color: #3c3f41;
+    -fx-text-fill: white;
+    -fx-opacity: 1.0;
+    -fx-border-color: #5c5c5c;
+    -fx-border-width: 1px;
+    -fx-border-radius: 3px;
+}
+
+
+.button:hover, .toggle-button:hover {
+    -fx-opacity: 0.8;
+    -fx-border-color: #7c7c7c;
+}
+
+
+.button:pressed, .toggle-button:pressed {
+    -fx-opacity: 0.6;
+    -fx-border-color: #9c9c9c;
+}
+
+.text {
+    -fx-fill: white;
+}
+
+.list-view {
+    -fx-background-color: #2b2b2b;
+    -fx-control-inner-background: #2b2b2b;
+    -fx-text-fill: white;
+}
+
+.list-cell {
+    -fx-background-color: #3c3f41;
+    -fx-text-fill: white;
+    -fx-border-color: #5c5c5c;
+    -fx-border-width: 1px;
+    -fx-padding: 5px;
+}
+
+.list-cell:filled:selected {
+    -fx-background-color: #5c5c5c;
+    -fx-text-fill: white;
+}
+
+.list-cell:filled:hover {
+    -fx-background-color: #7c7c7c;
+    -fx-text-fill: white;
+}
+
+.delete-button {
+    -fx-background-color: #ff4444;
+    -fx-text-fill: white;
+    -fx-border-color: #cc0000;
+    -fx-border-width: 1px;
+    -fx-border-radius: 3px;
+}
+
+.delete-button:hover {
+    -fx-background-color: #cc0000;
+    -fx-opacity: 0.8;
+}
+
+.delete-button:pressed {
+    -fx-background-color: #990000;
+    -fx-opacity: 0.6;
+}
+.text-field {
+    -fx-prompt-text-fill: rgba(255, 255, 255, 0.6);
+}
+
+#headerLabel {
+    -fx-font-weight: bold;
+    -fx-text-fill: #ecf0f1;
+    -fx-effect: dropshadow(gaussian, rgba(255, 255, 255, 0.1), 5, 0, 0, 2); /* Лёгкая тень */
+}
+
+.dialog-pane {
+    -fx-background-color: #2b2b2b;
+}
+
+.dialog-pane .label {
+    -fx-text-fill: white;
+}
+
+.dialog-pane .header-panel {
+    -fx-background-color: #3c3f41;
+}
+
+.dialog-pane .button {
+    -fx-background-color: #3c3f41;
+    -fx-text-fill: white;
+}

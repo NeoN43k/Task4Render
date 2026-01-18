@@ -1,0 +1,172 @@
+/*.root {
+    -fx-base: #ececec;
+    -fx-background: #f4f4f4;
+    -fx-control-inner-background: white;
+    -fx-text-fill: black;
+}
+
+.button {
+    -fx-background-color: #e0e0e0;
+    -fx-text-fill: black;
+}
+
+.toggle-button {
+    -fx-background-color: #e0e0e0;
+    -fx-text-fill: black;
+}
+
+.canvas {
+    -fx-background-color: #e0e0e0;
+}
+
+.pane {
+    -fx-background-color: white;
+}
+
+.button, .toggle-button {
+    -fx-background-color: #e0e0e0;
+    -fx-text-fill: black;
+    -fx-opacity: 1.0;
+}
+
+
+.button:hover, .toggle-button:hover {
+    -fx-opacity: 0.8;
+}
+
+.button:pressed, .toggle-button:pressed {
+    -fx-opacity: 0.6;
+}
+
+.text {
+    -fx-fill: black;
+}
+#headerLabel-light {
+    -fx-font-weight: bold;
+    -fx-text-fill: #2c3e50;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0, 0, 2);
+}
+*/
+.root {
+    -fx-base: #f4e9d8;
+    -fx-background: #f8f4e6;
+    -fx-control-inner-background: #f4e9d8;
+    -fx-text-fill: #4a3f35;
+}
+
+.button {
+    -fx-background-color: #d4c8b8;
+    -fx-text-fill: #4a3f35;
+}
+
+.toggle-button {
+    -fx-background-color: #d4c8b8;
+    -fx-text-fill: #4a3f35;
+}
+
+.canvas {
+    -fx-background-color: #f8f4e6;
+}
+
+.pane {
+    -fx-background-color: #e8e0d1;
+}
+
+.button, .toggle-button {
+    -fx-background-color: #d4c8b8;
+    -fx-text-fill: #4a3f35;
+    -fx-opacity: 1.0;
+    -fx-border-color: #b8a99a;
+    -fx-border-width: 1px;
+    -fx-border-radius: 3px;
+}
+
+.button:hover, .toggle-button:hover {
+    -fx-opacity: 0.8;
+    -fx-border-color: #9c8c7d;
+}
+
+.button:pressed, .toggle-button:pressed {
+    -fx-opacity: 0.6;
+    -fx-border-color: #7c6c5d;
+}
+
+.text {
+    -fx-fill: #4a3f35;
+}
+
+.list-view {
+    -fx-background-color: #f8f4e6;
+    -fx-control-inner-background: #f8f4e6;
+    -fx-text-fill: #4a3f35;
+}
+
+.list-cell {
+    -fx-background-color: #f4e9d8;
+    -fx-text-fill: #4a3f35;
+    -fx-border-color: #d4c8b8;
+    -fx-border-width: 1px;
+    -fx-padding: 5px;
+}
+
+.list-cell:filled:selected {
+    -fx-background-color: #d4c8b8;
+    -fx-text-fill: #4a3f35;
+}
+
+.list-cell:filled:hover {
+    -fx-background-color: #c4b8a8;
+    -fx-text-fill: #4a3f35;
+}
+
+.delete-button {
+    -fx-background-color: #d97777;
+    -fx-text-fill: white;
+    -fx-border-color: #b85c5c;
+    -fx-border-width: 1px;
+    -fx-border-radius: 3px;
+}
+
+.delete-button:hover {
+    -fx-background-color: #b85c5c;
+    -fx-opacity: 0.8;
+}
+
+.delete-button:pressed {
+    -fx-background-color: #984343;
+    -fx-opacity: 0.6;
+}
+
+.text-field {
+    -fx-prompt-text-fill: rgba(74, 63, 53, 0.6);
+}
+
+
+.check-box {
+    -fx-text-fill: #4a3f35;
+}
+
+.check-box .box {
+    -fx-background-color: #f4e9d8;
+    -fx-border-color: #b8a99a;
+}
+
+.check-box:selected .mark {
+    -fx-background-color: #4a3f35;
+}
+
+.slider .track {
+    -fx-background-color: #d4c8b8;
+}
+
+.slider .thumb {
+    -fx-background-color: #4a3f35;
+}
+
+.progress-bar .track {
+    -fx-background-color: #d4c8b8;
+}
+
+.progress-bar .bar {
+    -fx-background-color: #4a3f35;
+}
