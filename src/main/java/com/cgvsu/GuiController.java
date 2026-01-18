@@ -12,6 +12,7 @@ import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
@@ -24,6 +25,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.ResourceBundle;
 
 public class GuiController implements Initializable {
@@ -98,16 +100,13 @@ public class GuiController implements Initializable {
     private Label cameraCountLabel;
 
     @FXML
-    private ComboBox<String> renderModeComboBox;
+    private MenuItem addTestCubeMenuItem;
 
     @FXML
-    private ColorPicker modelColorPicker;
+    private MenuItem debugInfoMenuItem;
 
     @FXML
-    private Button loadTextureButton;
-
-    @FXML
-    private CheckBox showCamerasCheckBox;
+    private CheckMenuItem showDebugInfoCheckBox;
 
     private SceneManager sceneManager;
     private Stage primaryStage;
@@ -115,6 +114,7 @@ public class GuiController implements Initializable {
     private Texture currentTexture;
     private boolean showCameras = false;
     private TransformationPanel transformationPanel;
+    private boolean showDebugInfo = false;
 
     // Для управления мышкой
     private double lastMouseX, lastMouseY;
@@ -129,6 +129,9 @@ public class GuiController implements Initializable {
         setupEventHandlers();
         setupRenderControls();
         setupMouseControls();
+
+        // Добавляем тестовый куб по умолчанию для отладки
+        addTestCube();
     }
 
     private void setupUI() {
@@ -155,9 +158,9 @@ public class GuiController implements Initializable {
         });
 
         // Слушатель для камер
-        showCamerasCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
-            showCameras = newVal;
-            renderScene();
+        sceneManager.getModels().addListener((ListChangeListener<? super SceneManager.SceneModel>) c -> {
+            updateCameraTreeView();
+            updateCameraCount();
         });
     }
 
@@ -201,64 +204,7 @@ public class GuiController implements Initializable {
         });
     }
 
-    private void updateModelTreeView() {
-        TreeItem<String> root = modelTreeView.getRoot();
-        root.getChildren().clear();
-
-        for (int i = 0; i < sceneManager.getModels().size(); i++) {
-            SceneManager.SceneModel sceneModel = sceneManager.getModels().get(i);
-            TreeItem<String> modelItem = new TreeItem<>(sceneModel.getName());
-
-            // Добавляем информацию о модели
-            TreeItem<String> verticesItem = new TreeItem<>("Вершин: " + sceneModel.getModel().getVertexCount());
-            TreeItem<String> polygonsItem = new TreeItem<>("Полигонов: " + sceneModel.getModel().getPolygonCount());
-            TreeItem<String> visibilityItem = new TreeItem<>("Видима: " + (sceneModel.isVisible() ? "Да" : "Нет"));
-
-            modelItem.getChildren().addAll(verticesItem, polygonsItem, visibilityItem);
-            root.getChildren().add(modelItem);
-        }
-    }
-
-    private void updateCameraTreeView() {
-        TreeItem<String> root = cameraTreeView.getRoot();
-        root.getChildren().clear();
-
-        for (int i = 0; i < sceneManager.getCameraCount(); i++) {
-            String cameraName = "Камера " + (i + 1);
-            if (i == sceneManager.getCurrentCameraIndex()) {
-                cameraName += " (активная)";
-            }
-            TreeItem<String> cameraItem = new TreeItem<>(cameraName);
-            root.getChildren().add(cameraItem);
-        }
-    }
-
     private void setupRenderControls() {
-        // Инициализация ColorPicker - проверка на null
-        if (modelColorPicker != null) {
-            modelColorPicker.setValue(Color.LIGHTGRAY);
-            modelColorPicker.setOnAction(event -> {
-                RenderEngine.setModelColor(modelColorPicker.getValue());
-                renderScene();
-            });
-        }
-
-        // Инициализация ComboBox с режимами рендеринга
-        if (renderModeComboBox != null) {
-            renderModeComboBox.getItems().addAll(
-                    "Только сетка",
-                    "Заливка цветом",
-                    "Только текстура",
-                    "Освещение + цвет",
-                    "Освещение + текстура",
-                    "Все эффекты"
-            );
-            renderModeComboBox.setValue("Заливка цветом");
-            renderModeComboBox.setOnAction(event -> {
-                updateRenderModeFromComboBox();
-            });
-        }
-
         // Инициализация CheckMenuItems
         if (wireframeMenuItem != null) {
             wireframeMenuItem.selectedProperty().addListener((obs, oldVal, newVal) -> {
@@ -278,11 +224,6 @@ public class GuiController implements Initializable {
             });
         }
 
-        // Кнопка загрузки текстуры
-        if (loadTextureButton != null) {
-            loadTextureButton.setOnAction(event -> loadTexture());
-        }
-
         // Управление камерами
         if (addCameraMenuItem != null) {
             addCameraMenuItem.setOnAction(event -> addCamera());
@@ -294,6 +235,22 @@ public class GuiController implements Initializable {
 
         if (toggleCameraVisibilityItem != null) {
             toggleCameraVisibilityItem.setOnAction(event -> toggleCameraVisibility());
+        }
+
+        // Тестовые функции
+        if (addTestCubeMenuItem != null) {
+            addTestCubeMenuItem.setOnAction(event -> addTestCube());
+        }
+
+        if (debugInfoMenuItem != null) {
+            debugInfoMenuItem.setOnAction(event -> toggleDebugInfo());
+        }
+
+        if (showDebugInfoCheckBox != null) {
+            showDebugInfoCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                showDebugInfo = newVal;
+                renderScene();
+            });
         }
 
         // Инициализация состояния рендеринга
@@ -323,11 +280,11 @@ public class GuiController implements Initializable {
 
                 // Левый клик + drag = вращение
                 if (event.isPrimaryButtonDown()) {
-                    camera.rotate((float) deltaX * 0.5f, (float) deltaY * 0.5f);
+                    camera.rotate((float) deltaX * 0.5f, (float) -deltaY * 0.5f); // Инвертируем Y
                 }
                 // Правый клик + drag = панорамирование
                 else if (event.isSecondaryButtonDown()) {
-                    camera.pan((float) deltaX * 0.01f, (float) deltaY * -0.01f);
+                    camera.pan((float) deltaX * 0.01f, (float) deltaY * 0.01f);
                 }
                 // Средний клик/колесо + drag = приближение/отдаление
                 else if (event.isMiddleButtonDown()) {
@@ -355,74 +312,23 @@ public class GuiController implements Initializable {
         deleteSelectedButton.setOnAction(event -> deleteSelectedElements());
     }
 
-    private void updateRenderModeFromComboBox() {
-        String selected = renderModeComboBox.getValue();
-        if (selected != null) {
-            switch (selected) {
-                case "Только сетка":
-                    RenderEngine.setRenderMode(RenderModes.WIREFRAME);
-                    wireframeMenuItem.setSelected(true);
-                    textureMenuItem.setSelected(false);
-                    lightingMenuItem.setSelected(false);
-                    break;
-                case "Заливка цветом":
-                    RenderEngine.setRenderMode(RenderModes.SOLID_COLOR);
-                    wireframeMenuItem.setSelected(false);
-                    textureMenuItem.setSelected(false);
-                    lightingMenuItem.setSelected(false);
-                    break;
-                case "Только текстура":
-                    RenderEngine.setRenderMode(RenderModes.TEXTURED);
-                    wireframeMenuItem.setSelected(false);
-                    textureMenuItem.setSelected(true);
-                    lightingMenuItem.setSelected(false);
-                    break;
-                case "Освещение + цвет":
-                    RenderEngine.setRenderMode(RenderModes.LIT_SOLID);
-                    wireframeMenuItem.setSelected(false);
-                    textureMenuItem.setSelected(false);
-                    lightingMenuItem.setSelected(true);
-                    break;
-                case "Освещение + текстура":
-                    RenderEngine.setRenderMode(RenderModes.LIT_TEXTURED);
-                    wireframeMenuItem.setSelected(false);
-                    textureMenuItem.setSelected(true);
-                    lightingMenuItem.setSelected(true);
-                    break;
-                case "Все эффекты":
-                    RenderEngine.setRenderMode(RenderModes.FULL);
-                    wireframeMenuItem.setSelected(true);
-                    textureMenuItem.setSelected(true);
-                    lightingMenuItem.setSelected(true);
-                    break;
-            }
-            renderScene();
-        }
-    }
-
     private void updateRenderModeFromCheckboxes() {
-        boolean wireframe = wireframeMenuItem.isSelected();
-        boolean texture = textureMenuItem.isSelected();
-        boolean lighting = lightingMenuItem.isSelected();
+        boolean wireframe = wireframeMenuItem != null && wireframeMenuItem.isSelected();
+        boolean texture = textureMenuItem != null && textureMenuItem.isSelected();
+        boolean lighting = lightingMenuItem != null && lightingMenuItem.isSelected();
 
         if (wireframe && texture && lighting) {
             RenderEngine.setRenderMode(RenderModes.FULL);
-            renderModeComboBox.setValue("Все эффекты");
         } else if (wireframe && !texture && !lighting) {
             RenderEngine.setRenderMode(RenderModes.WIREFRAME);
-            renderModeComboBox.setValue("Только сетка");
         } else if (!wireframe && texture && !lighting) {
             RenderEngine.setRenderMode(RenderModes.TEXTURED);
-            renderModeComboBox.setValue("Только текстура");
         } else if (!wireframe && !texture && lighting) {
             RenderEngine.setRenderMode(RenderModes.LIT_SOLID);
-            renderModeComboBox.setValue("Освещение + цвет");
         } else if (!wireframe && texture && lighting) {
             RenderEngine.setRenderMode(RenderModes.LIT_TEXTURED);
-            renderModeComboBox.setValue("Освещение + текстура");
         } else {
             RenderEngine.setRenderMode(RenderModes.SOLID_COLOR);
-            renderModeComboBox.setValue("Заливка цветом");
         }
 
         renderScene();
@@ -538,7 +444,9 @@ public class GuiController implements Initializable {
             try {
                 currentTexture = new Texture(file.getAbsolutePath());
                 RenderEngine.setTexture(currentTexture);
-                textureMenuItem.setSelected(true);
+                if (textureMenuItem != null) {
+                    textureMenuItem.setSelected(true);
+                }
                 updateRenderModeFromCheckboxes();
                 renderScene();
             } catch (Exception e) {
@@ -570,7 +478,18 @@ public class GuiController implements Initializable {
     @FXML
     private void toggleCameraVisibility() {
         showCameras = !showCameras;
-        showCamerasCheckBox.setSelected(showCameras);
+        if (showDebugInfoCheckBox != null) {
+            showDebugInfoCheckBox.setSelected(showCameras);
+        }
+        renderScene();
+    }
+
+    @FXML
+    private void toggleDebugInfo() {
+        showDebugInfo = !showDebugInfo;
+        if (showDebugInfoCheckBox != null) {
+            showDebugInfoCheckBox.setSelected(showDebugInfo);
+        }
         renderScene();
     }
 
@@ -601,6 +520,54 @@ public class GuiController implements Initializable {
         updateModelCount();
     }
 
+    @FXML
+    private void addTestCube() {
+        Model cube = createTestCube();
+        sceneManager.addModel(cube, "Test Cube");
+        renderScene();
+    }
+
+    private Model createTestCube() {
+        Model cube = new Model();
+        cube.setName("Test Cube");
+
+        // 8 вершин куба (центр в 0,0,0, размер 1)
+        float size = 0.5f;
+        cube.vertices.add(new com.cgvsu.math.Vector3f(-size, -size, -size)); // 0
+        cube.vertices.add(new com.cgvsu.math.Vector3f(size, -size, -size));  // 1
+        cube.vertices.add(new com.cgvsu.math.Vector3f(size, size, -size));   // 2
+        cube.vertices.add(new com.cgvsu.math.Vector3f(-size, size, -size));  // 3
+        cube.vertices.add(new com.cgvsu.math.Vector3f(-size, -size, size));  // 4
+        cube.vertices.add(new com.cgvsu.math.Vector3f(size, -size, size));   // 5
+        cube.vertices.add(new com.cgvsu.math.Vector3f(size, size, size));    // 6
+        cube.vertices.add(new com.cgvsu.math.Vector3f(-size, size, size));   // 7
+
+        // 12 треугольников (6 граней по 2 треугольника)
+        int[][] faces = {
+                {0, 1, 2, 3}, // передняя
+                {4, 5, 6, 7}, // задняя
+                {0, 1, 5, 4}, // нижняя
+                {2, 3, 7, 6}, // верхняя
+                {0, 3, 7, 4}, // левая
+                {1, 2, 6, 5}  // правая
+        };
+
+        for (int[] face : faces) {
+            com.cgvsu.model.Polygon poly1 = new com.cgvsu.model.Polygon();
+            ArrayList<Integer> indices1 = new ArrayList<>(Arrays.asList(face[0], face[1], face[2]));
+            poly1.setVertexIndices(indices1);
+            cube.polygons.add(poly1);
+
+            com.cgvsu.model.Polygon poly2 = new com.cgvsu.model.Polygon();
+            ArrayList<Integer> indices2 = new ArrayList<>(Arrays.asList(face[0], face[2], face[3]));
+            poly2.setVertexIndices(indices2);
+            cube.polygons.add(poly2);
+        }
+
+        cube.calculateNormals();
+        return cube;
+    }
+
     private String getSelectionMode() {
         if (selectVertexButton.isSelected()) {
             return "VERTEX";
@@ -611,17 +578,96 @@ public class GuiController implements Initializable {
         }
     }
 
+    private void updateModelTreeView() {
+        TreeItem<String> root = modelTreeView.getRoot();
+        if (root == null) {
+            root = new TreeItem<>("Модели сцены");
+            modelTreeView.setRoot(root);
+        }
+        root.getChildren().clear();
+
+        for (int i = 0; i < sceneManager.getModels().size(); i++) {
+            SceneManager.SceneModel sceneModel = sceneManager.getModels().get(i);
+            TreeItem<String> modelItem = new TreeItem<>(sceneModel.getName());
+
+            // Добавляем информацию о модели
+            TreeItem<String> verticesItem = new TreeItem<>("Вершин: " + sceneModel.getModel().getVertexCount());
+            TreeItem<String> polygonsItem = new TreeItem<>("Полигонов: " + sceneModel.getModel().getPolygonCount());
+            TreeItem<String> visibilityItem = new TreeItem<>("Видима: " + (sceneModel.isVisible() ? "Да" : "Нет"));
+
+            modelItem.getChildren().addAll(verticesItem, polygonsItem, visibilityItem);
+            root.getChildren().add(modelItem);
+        }
+    }
+
+    private void updateCameraTreeView() {
+        TreeItem<String> root = cameraTreeView.getRoot();
+        if (root == null) {
+            root = new TreeItem<>("Камеры");
+            cameraTreeView.setRoot(root);
+        }
+        root.getChildren().clear();
+
+        for (int i = 0; i < sceneManager.getCameraCount(); i++) {
+            String cameraName = "Камера " + (i + 1);
+            if (i == sceneManager.getCurrentCameraIndex()) {
+                cameraName += " (активная)";
+            }
+            TreeItem<String> cameraItem = new TreeItem<>(cameraName);
+            root.getChildren().add(cameraItem);
+        }
+    }
+
     private void updateModelCount() {
-        modelCountLabel.setText("Моделей: " + sceneManager.getModels().size());
+        if (modelCountLabel != null) {
+            modelCountLabel.setText("Моделей: " + sceneManager.getModels().size());
+        }
     }
 
     private void updateCameraCount() {
-        cameraCountLabel.setText("Камер: " + sceneManager.getCameraCount());
+        if (cameraCountLabel != null) {
+            cameraCountLabel.setText("Камер: " + sceneManager.getCameraCount());
+        }
         updateCameraTreeView();
     }
 
     private void renderScene() {
         if (viewportCanvas != null && sceneManager != null) {
+            GraphicsContext gc = viewportCanvas.getGraphicsContext2D();
+            int width = (int) viewportCanvas.getWidth();
+            int height = (int) viewportCanvas.getHeight();
+
+            // Очищаем канвас
+            gc.clearRect(0, 0, width, height);
+
+            // Отладочная информация
+            if (showDebugInfo) {
+                gc.setFill(Color.WHITE);
+                gc.setFont(javafx.scene.text.Font.font("Arial", 12));
+
+                Camera camera = sceneManager.getCurrentCamera();
+                com.cgvsu.math.Vector3f camPos = camera.getPositionMath();
+                com.cgvsu.math.Vector3f camTarget = camera.getTargetMath();
+
+                gc.fillText("Camera Position: (" + String.format("%.2f", camPos.x) + ", " +
+                        String.format("%.2f", camPos.y) + ", " + String.format("%.2f", camPos.z) + ")", 10, 20);
+                gc.fillText("Camera Target: (" + String.format("%.2f", camTarget.x) + ", " +
+                        String.format("%.2f", camTarget.y) + ", " + String.format("%.2f", camTarget.z) + ")", 10, 40);
+                gc.fillText("Models: " + sceneManager.getModels().size(), 10, 60);
+                gc.fillText("Render Mode: " + RenderEngine.getRenderMode(), 10, 80);
+                gc.fillText("Canvas: " + width + "x" + height, 10, 100);
+
+                // Если есть модели, показываем информацию о первой
+                if (!sceneManager.getModels().isEmpty()) {
+                    Model firstModel = sceneManager.getModels().get(0).getModel();
+                    com.cgvsu.math.Vector3f modelPos = firstModel.getPosition();
+                    gc.fillText("Model Position: (" + String.format("%.2f", modelPos.x) + ", " +
+                            String.format("%.2f", modelPos.y) + ", " + String.format("%.2f", modelPos.z) + ")", 10, 120);
+                    gc.fillText("Vertices: " + firstModel.getVertexCount(), 10, 140);
+                    gc.fillText("Polygons: " + firstModel.getPolygonCount(), 10, 160);
+                }
+            }
+
             // Обновляем визуализацию камер
             if (showCameras) {
                 sceneManager.updateCameraModels();

@@ -15,6 +15,9 @@
                 <MenuItem fx:id="openMenuItem" text="Открыть модель..." />
                 <MenuItem fx:id="saveMenuItem" text="Сохранить модель..." />
                 <SeparatorMenuItem />
+                <MenuItem fx:id="addTestCubeMenuItem" text="Добавить тестовый куб" />
+                <MenuItem fx:id="debugInfoMenuItem" text="Отладочная информация" />
+                <SeparatorMenuItem />
                 <MenuItem fx:id="exitMenuItem" text="Выход" />
             </Menu>
             <Menu text="Вид">
@@ -27,6 +30,8 @@
                 <MenuItem fx:id="addCameraMenuItem" text="Добавить камеру" />
                 <MenuItem fx:id="removeCameraMenuItem" text="Удалить камеру" />
                 <MenuItem fx:id="toggleCameraVisibilityItem" text="Показать/скрыть камеры" />
+                <SeparatorMenuItem />
+                <CheckMenuItem fx:id="showDebugInfoCheckBox" text="Показать отладочную информацию" />
             </Menu>
             <Menu text="Редактирование">
                 <MenuItem text="Выделить все" />

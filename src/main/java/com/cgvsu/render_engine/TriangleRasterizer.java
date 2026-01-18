@@ -2,6 +2,7 @@ package com.cgvsu.render_engine;
 
 import com.cgvsu.math.Vector2f;
 import com.cgvsu.math.Vector3f;
+import com.cgvsu.math.Vector4f;
 import com.cgvsu.model.Polygon;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.PixelWriter;
@@ -12,12 +13,13 @@ import java.util.ArrayList;
 
 public class TriangleRasterizer {
 
-    public static void renderTriangle(
+    // НОВЫЙ метод для работы с clip space координатами
+    public static void renderTriangleClipSpace(
             GraphicsContext gc,
             ZBuffer zBuffer,
             com.cgvsu.model.Model model,
             Polygon polygon,
-            ArrayList<Vector3f> transformedVertices,
+            ArrayList<Vector4f> clipSpaceVertices,  // Изменено на Vector4f
             ArrayList<Vector3f> transformedNormals,
             ArrayList<Vector2f> textureCoords,
             Color baseColor,
@@ -28,29 +30,19 @@ public class TriangleRasterizer {
         ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
         if (vertexIndices.size() != 3) return;
 
-        // Получаем вершины треугольника
-        Vector3f v0 = transformedVertices.get(vertexIndices.get(0));
-        Vector3f v1 = transformedVertices.get(vertexIndices.get(1));
-        Vector3f v2 = transformedVertices.get(vertexIndices.get(2));
+        // Получаем вершины треугольника в clip space
+        Vector4f v0 = clipSpaceVertices.get(vertexIndices.get(0));
+        Vector4f v1 = clipSpaceVertices.get(vertexIndices.get(1));
+        Vector4f v2 = clipSpaceVertices.get(vertexIndices.get(2));
 
-        // Конвертируем в javax.vecmath.Vector3f для GraphicConveyor
-        javax.vecmath.Vector3f vecmathV0 = new javax.vecmath.Vector3f(v0.x, v0.y, v0.z);
-        javax.vecmath.Vector3f vecmathV1 = new javax.vecmath.Vector3f(v1.x, v1.y, v1.z);
-        javax.vecmath.Vector3f vecmathV2 = new javax.vecmath.Vector3f(v2.x, v2.y, v2.z);
+        // Преобразуем в экранные координаты с перспективным делением
+        Point2f p0 = GraphicConveyor.vertexToPoint(v0, zBuffer.getWidth(), zBuffer.getHeight());
+        Point2f p1 = GraphicConveyor.vertexToPoint(v1, zBuffer.getWidth(), zBuffer.getHeight());
+        Point2f p2 = GraphicConveyor.vertexToPoint(v2, zBuffer.getHeight(), zBuffer.getHeight());
 
-        // Преобразуем в экранные координаты
-        Point2f p0 = GraphicConveyor.vertexToPoint(
-                new Vector3f(vecmathV0.x, vecmathV0.y, vecmathV0.z),
-                zBuffer.getWidth(), zBuffer.getHeight()
-        );
-        Point2f p1 = GraphicConveyor.vertexToPoint(
-                new Vector3f(vecmathV1.x, vecmathV1.y, vecmathV1.z),
-                zBuffer.getWidth(), zBuffer.getHeight()
-        );
-        Point2f p2 = GraphicConveyor.vertexToPoint(
-                new Vector3f(vecmathV2.x, vecmathV2.y, vecmathV2.z),
-                zBuffer.getWidth(), zBuffer.getHeight()
-        );
+        if (p0 == null || p1 == null || p2 == null) {
+            return; // Треугольник не видим
+        }
 
         // Находим ограничивающий прямоугольник
         int minX = (int) Math.max(0, Math.floor(Math.min(p0.x, Math.min(p1.x, p2.x))));
@@ -60,12 +52,15 @@ public class TriangleRasterizer {
 
         // Вектора сторон для вычисления барицентрических координат
         float area = edgeFunction(p0, p1, p2);
-        if (Math.abs(area) < 0.0001f) return; // Защита от деления на ноль
+        if (Math.abs(area) < 0.0001f) return;
 
         PixelWriter pixelWriter = gc.getPixelWriter();
-
-        // Нормализуем w для предварительных вычислений
         float invArea = 1.0f / area;
+
+        // Вычисляем глубины после перспективного деления для каждой вершины
+        float z0 = v0.z / v0.w;
+        float z1 = v1.z / v1.w;
+        float z2 = v2.z / v2.w;
 
         for (int y = minY; y <= maxY; y++) {
             for (int x = minX; x <= maxX; x++) {
@@ -76,18 +71,23 @@ public class TriangleRasterizer {
                 float w1 = edgeFunction(p2, p0, p);
                 float w2 = edgeFunction(p0, p1, p);
 
-                // Если точка внутри треугольника (с учетом небольшого допуска)
+                // Если точка внутри треугольника
                 if (w0 >= -0.0001f && w1 >= -0.0001f && w2 >= -0.0001f) {
                     // Нормализуем
                     w0 *= invArea;
                     w1 *= invArea;
                     w2 *= invArea;
 
-                    // Интерполируем Z-координату
-                    float z = w0 * v0.z + w1 * v1.z + w2 * v2.z;
+                    // Интерполируем Z-координату в NDC пространстве
+                    float z = w0 * z0 + w1 * z1 + w2 * z2;
 
-                    // Проверяем Z-буфер
+                    // Проверяем Z-буфер (в NDC Z от -1 до 1, где -1 - ближе)
                     if (zBuffer.testAndSet(x, y, z)) {
+                        // Для вычислений используем исходные позиции вершин
+                        Vector3f v0pos = new Vector3f(v0.x / v0.w, v0.y / v0.w, v0.z / v0.w);
+                        Vector3f v1pos = new Vector3f(v1.x / v1.w, v1.y / v1.w, v1.z / v1.w);
+                        Vector3f v2pos = new Vector3f(v2.x / v2.w, v2.y / v2.w, v2.z / v2.w);
+
                         Color color = calculatePixelColor(
                                 w0, w1, w2,
                                 polygon,
@@ -96,7 +96,7 @@ public class TriangleRasterizer {
                                 texture,
                                 light,
                                 transformedNormals,
-                                v0, v1, v2,
+                                v0pos, v1pos, v2pos,
                                 renderMode
                         );
 
@@ -111,6 +111,35 @@ public class TriangleRasterizer {
         if (renderMode == RenderModes.FULL || renderMode == RenderModes.WIREFRAME) {
             drawWireframe(gc, p0, p1, p2, Color.BLACK);
         }
+    }
+
+    // Старый метод для обратной совместимости
+    public static void renderTriangle(
+            GraphicsContext gc,
+            ZBuffer zBuffer,
+            com.cgvsu.model.Model model,
+            Polygon polygon,
+            ArrayList<Vector3f> transformedVertices,
+            ArrayList<Vector3f> transformedNormals,
+            ArrayList<Vector2f> textureCoords,
+            Color baseColor,
+            Texture texture,
+            Light light,
+            RenderModes renderMode) {
+
+        // Конвертируем Vector3f в Vector4f для нового метода
+        ArrayList<Vector4f> clipSpaceVertices = new ArrayList<>();
+        for (Vector3f vertex : transformedVertices) {
+            // Предполагаем, что transformedVertices уже в clip space с w=1
+            clipSpaceVertices.add(new Vector4f(vertex.x, vertex.y, vertex.z, 1.0f));
+        }
+
+        renderTriangleClipSpace(
+                gc, zBuffer, model, polygon,
+                clipSpaceVertices, transformedNormals,
+                textureCoords, baseColor,
+                texture, light, renderMode
+        );
     }
 
     private static Color calculatePixelColor(

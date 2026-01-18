@@ -29,7 +29,7 @@ public class Model {
         this.vertices = new ArrayList<>();
         this.polygons = new ArrayList<>();
         this.name = "Unnamed Model";
-        this.transformMatrix = Matrix4f.identity();
+        updateTransformMatrix();
     }
 
     // Конструктор для копирования
@@ -126,12 +126,13 @@ public class Model {
         }
 
         List<Vector3f> transformed = new ArrayList<>();
+
+        // Создаем матрицу только с вращением
         Matrix4f rotationMatrix = Matrix4f.rotateX(rotation.x)
                 .multiply(Matrix4f.rotateY(rotation.y))
                 .multiply(Matrix4f.rotateZ(rotation.z));
 
         for (Vector3f normal : normals) {
-            // Для нормалей используем только вращательную часть
             Vector4f normal4 = new Vector4f(normal.x, normal.y, normal.z, 0);
             Vector4f transformed4 = rotationMatrix.multiply(normal4);
             Vector3f transformedNormal = new Vector3f(
@@ -143,23 +144,53 @@ public class Model {
     }
 
     // === Геттеры и сеттеры ===
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public String getName() {
+        return name;
+    }
 
-    public List<Vector3f> getVertices() { return vertices; }
-    public void setVertices(List<Vector3f> vertices) { this.vertices = (ArrayList<Vector3f>) vertices; }
+    public void setName(String name) {
+        this.name = name;
+    }
 
-    public List<Polygon> getPolygons() { return polygons; }
-    public void setPolygons(List<Polygon> polygons) { this.polygons = (ArrayList<Polygon>) polygons; }
+    public List<Vector3f> getVertices() {
+        return vertices;
+    }
 
-    public boolean isSelected() { return selected; }
-    public void setSelected(boolean selected) { this.selected = selected; }
+    public void setVertices(List<Vector3f> vertices) {
+        this.vertices = (ArrayList<Vector3f>) vertices;
+    }
 
-    public String getFilePath() { return filePath; }
-    public void setFilePath(String filePath) { this.filePath = filePath; }
+    public List<Polygon> getPolygons() {
+        return polygons;
+    }
 
-    public int getVertexCount() { return vertices.size(); }
-    public int getPolygonCount() { return polygons.size(); }
+    public void setPolygons(List<Polygon> polygons) {
+        this.polygons = (ArrayList<Polygon>) polygons;
+    }
+
+    public boolean isSelected() {
+        return selected;
+    }
+
+    public void setSelected(boolean selected) {
+        this.selected = selected;
+    }
+
+    public String getFilePath() {
+        return filePath;
+    }
+
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+
+    public int getVertexCount() {
+        return vertices.size();
+    }
+
+    public int getPolygonCount() {
+        return polygons.size();
+    }
 
     // === Утилитные методы ===
     public void calculateNormals() {
@@ -287,7 +318,7 @@ public class Model {
 
         // Применяем трансформации к нормалям
         for (Vector3f normal : this.normals) {
-            // Только вращение для нормалей
+            // Создаем матрицу только с вращением
             Matrix4f rotationMatrix = Matrix4f.rotateX(rotation.x)
                     .multiply(Matrix4f.rotateY(rotation.y))
                     .multiply(Matrix4f.rotateZ(rotation.z));

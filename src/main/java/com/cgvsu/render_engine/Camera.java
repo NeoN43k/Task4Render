@@ -6,40 +6,46 @@ import com.cgvsu.math.Vector3f;
 import javax.vecmath.*;
 
 public class Camera {
-
-    private com.cgvsu.math.Vector3f position;
-    private com.cgvsu.math.Vector3f target;
+    private Vector3f position;
+    private Vector3f target;
     private float fov;
     private float aspectRatio;
     private float nearPlane;
     private float farPlane;
 
-    // Для управления мышкой
-    private float yaw = 0.0f;   // Поворот вокруг Y
-    private float pitch = 0.0f; // Поворот вокруг X
-    private float distance = 5.0f; // Дистанция от цели
+    private float yaw = 0.0f;
+    private float pitch = 0.0f;
+    private float distance = 10.0f;
+    private Vector3f up = new Vector3f(0, 1, 0);
 
-    // Конструктор с нашими Vector3f
-    public Camera(com.cgvsu.math.Vector3f position, com.cgvsu.math.Vector3f target,
-                  float fov, float aspectRatio, float nearPlane, float farPlane) {
+    public Camera(Vector3f position, Vector3f target, float fov, float aspectRatio, float nearPlane, float farPlane) {
         this.position = position;
         this.target = target;
         this.fov = fov;
         this.aspectRatio = aspectRatio;
         this.nearPlane = nearPlane;
         this.farPlane = farPlane;
-        updatePositionFromOrbit();
+        calculateDistanceAndAngles();
     }
 
-    // Конструктор для совместимости со старым кодом (javax.vecmath.Vector3f)
     public Camera(javax.vecmath.Vector3f position, javax.vecmath.Vector3f target,
                   float fov, float aspectRatio, float nearPlane, float farPlane) {
-        this(new com.cgvsu.math.Vector3f(position.x, position.y, position.z),
-                new com.cgvsu.math.Vector3f(target.x, target.y, target.z),
+        this(new Vector3f(position.x, position.y, position.z),
+                new Vector3f(target.x, target.y, target.z),
                 fov, aspectRatio, nearPlane, farPlane);
     }
 
-    // Геттеры и сеттеры
+    private void calculateDistanceAndAngles() {
+        Vector3f dir = target.subtract(position);
+        distance = dir.length();
+
+        if (distance > 0) {
+            dir = dir.normalize();
+            yaw = (float) Math.atan2(dir.x, dir.z);
+            pitch = (float) Math.asin(dir.y);
+        }
+    }
+
     public javax.vecmath.Vector3f getPosition() {
         return new javax.vecmath.Vector3f(position.x, position.y, position.z);
     }
@@ -48,118 +54,135 @@ public class Camera {
         return new javax.vecmath.Vector3f(target.x, target.y, target.z);
     }
 
-    public com.cgvsu.math.Vector3f getPositionMath() {
+    public Vector3f getPositionMath() {
         return position;
     }
 
-    public com.cgvsu.math.Vector3f getTargetMath() {
+    public Vector3f getTargetMath() {
         return target;
     }
 
     public void setPosition(javax.vecmath.Vector3f position) {
-        this.position = new com.cgvsu.math.Vector3f(position.x, position.y, position.z);
+        this.position = new Vector3f(position.x, position.y, position.z);
+        calculateDistanceAndAngles();
     }
 
     public void setTarget(javax.vecmath.Vector3f target) {
-        this.target = new com.cgvsu.math.Vector3f(target.x, target.y, target.z);
-        updatePositionFromOrbit();
+        this.target = new Vector3f(target.x, target.y, target.z);
+        calculateDistanceAndAngles();
     }
 
-    public void setPositionMath(com.cgvsu.math.Vector3f position) {
+    public void setPositionMath(Vector3f position) {
         this.position = position;
+        calculateDistanceAndAngles();
     }
 
-    public void setTargetMath(com.cgvsu.math.Vector3f target) {
+    public void setTargetMath(Vector3f target) {
         this.target = target;
-        updatePositionFromOrbit();
+        calculateDistanceAndAngles();
     }
 
     public void setAspectRatio(float aspectRatio) {
         this.aspectRatio = aspectRatio;
     }
 
-    // Управление орбитальной камерой
+    // ИСПРАВЛЕНО: Убрал инверсию
     public void rotate(float deltaYaw, float deltaPitch) {
         yaw += deltaYaw;
         pitch += deltaPitch;
 
-        // Ограничиваем pitch чтобы не переворачивать камеру
-        pitch = Math.max(-89.0f, Math.min(89.0f, pitch));
+        pitch = Math.max(-(float)Math.PI/2 + 0.1f,
+                Math.min((float)Math.PI/2 - 0.1f, pitch));
 
-        updatePositionFromOrbit();
+        updatePosition();
     }
 
     public void zoom(float delta) {
-        distance = Math.max(1.0f, Math.min(50.0f, distance + delta));
-        updatePositionFromOrbit();
+        distance = Math.max(1.0f, Math.min(100.0f, distance * (1.0f - delta * 0.1f)));
+        updatePosition();
     }
 
+    // ИСПРАВЛЕНО: Правильный pan
     public void pan(float deltaX, float deltaY) {
-        // Вычисляем вектора right и up камеры
-        com.cgvsu.math.Vector3f forward = target.subtract(position).normalize();
-        com.cgvsu.math.Vector3f right = forward.cross(new com.cgvsu.math.Vector3f(0, 1, 0)).normalize();
-        com.cgvsu.math.Vector3f up = right.cross(forward).normalize();
+        Vector3f forward = target.subtract(position).normalize();
+        Vector3f right = up.cross(forward).normalize();
+        Vector3f actualUp = forward.cross(right).normalize();
 
-        // Двигаем цель
-        target = target.add(right.multiply(-deltaX));
-        target = target.add(up.multiply(deltaY));
+        float panSpeed = distance * 0.002f;
 
-        updatePositionFromOrbit();
+        target = target.add(right.multiply(-deltaX * panSpeed));
+        target = target.add(actualUp.multiply(deltaY * panSpeed));
+
+        updatePosition();
     }
 
-    private void updatePositionFromOrbit() {
-        // Преобразуем сферические координаты в декартовы
-        float yawRad = (float) Math.toRadians(yaw);
-        float pitchRad = (float) Math.toRadians(pitch);
+    private void updatePosition() {
+        float horizontalDistance = distance * (float)Math.cos(pitch);
+        float verticalDistance = distance * (float)Math.sin(pitch);
 
-        float x = distance * (float) (Math.cos(pitchRad) * Math.sin(yawRad));
-        float y = distance * (float) Math.sin(pitchRad);
-        float z = distance * (float) (Math.cos(pitchRad) * Math.cos(yawRad));
+        float offsetX = horizontalDistance * (float)Math.sin(yaw);
+        float offsetZ = horizontalDistance * (float)Math.cos(yaw);
+        float offsetY = verticalDistance;
 
-        position = target.add(new com.cgvsu.math.Vector3f(x, y, z));
+        position = new Vector3f(
+                target.x + offsetX,
+                target.y + offsetY,
+                target.z + offsetZ
+        );
     }
 
-    // Матрица вида
     public Matrix4f getViewMatrix() {
-        com.cgvsu.math.Vector3f up = new com.cgvsu.math.Vector3f(0, 1, 0);
-        return GraphicConveyor.lookAt(position, target, up);
+        return Matrix4f.lookAt(position, target, up);
     }
 
-    // Матрица проекции
     public Matrix4f getProjectionMatrix() {
-        return GraphicConveyor.perspective(fov, aspectRatio, nearPlane, farPlane);
+        return Matrix4f.perspective(fov, aspectRatio, nearPlane, farPlane);
     }
 
-    // Старые методы для совместимости
     public javax.vecmath.Matrix4f getViewMatrixOld() {
-        Matrix4f view = getViewMatrix();
-        return convertMatrix(view);
+        return getViewMatrix().toVecmathMatrix();
     }
 
     public javax.vecmath.Matrix4f getProjectionMatrixOld() {
-        Matrix4f proj = getProjectionMatrix();
-        return convertMatrix(proj);
+        return getProjectionMatrix().toVecmathMatrix();
     }
 
-    private javax.vecmath.Matrix4f convertMatrix(Matrix4f matrix) {
-        javax.vecmath.Matrix4f result = new javax.vecmath.Matrix4f();
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                result.setElement(i, j, matrix.get(i, j));
-            }
-        }
-        return result;
-    }
-
-    // Исправленный метод moveTarget
     public void moveTarget(javax.vecmath.Vector3f translation) {
-        target = target.add(new com.cgvsu.math.Vector3f(translation.x, translation.y, translation.z));
-        updatePositionFromOrbit();
+        target = target.add(new Vector3f(translation.x, translation.y, translation.z));
+        updatePosition();
     }
 
-    // Метод для перемещения камеры
     public void movePosition(javax.vecmath.Vector3f translation) {
-        position = position.add(new com.cgvsu.math.Vector3f(translation.x, translation.y, translation.z));
-        target = target.add(new com.cgvsu.math.Vector3f(translation.x, translation.y, translation.z));
+        position = position.add(new Vector3f(translation.x, translation.y, translation.z));
+        target = target.add(new Vector3f(translation.x, translation.y, translation.z));
+    }
+
+    public float getFov() {
+        return fov;
+    }
+
+    public float getAspectRatio() {
+        return aspectRatio;
+    }
+
+    public float getNearPlane() {
+        return nearPlane;
+    }
+
+    public float getFarPlane() {
+        return farPlane;
+    }
+
+    // ДОБАВЛЕНО геттеры для отладки
+    public float getYaw() {
+        return yaw;
+    }
+
+    public float getPitch() {
+        return pitch;
+    }
+
+    public float getDistance() {
+        return distance;
     }
 }
