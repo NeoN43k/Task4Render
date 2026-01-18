@@ -16,8 +16,8 @@ public class Light {
     // Источник света, привязанный к камере
     public static Light createCameraLight(Camera camera) {
         // Свет чуть выше и сзади камеры
-        Vector3f cameraPos = camera.getPosition();
-        Vector3f cameraTarget = camera.getTarget();
+        javax.vecmath.Vector3f cameraPos = camera.getPosition();
+        javax.vecmath.Vector3f cameraTarget = camera.getTarget();
 
         // Направление от камеры к цели
         Vector3f direction = new Vector3f(

@@ -2,13 +2,10 @@ package com.cgvsu.scene;
 
 import com.cgvsu.model.Model;
 import com.cgvsu.render_engine.Camera;
-import com.cgvsu.math.Vector3f;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
-import javax.vecmath.Vector3f as JVector3f;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class SceneManager {
@@ -53,8 +50,8 @@ public class SceneManager {
 
     public SceneManager() {
         // Добавляем камеру по умолчанию с правильными параметрами
-        JVector3f defaultPosition = new JVector3f(0, 0, 0);
-        JVector3f defaultTarget = new JVector3f(0, 0, -1);
+        javax.vecmath.Vector3f defaultPosition = new javax.vecmath.Vector3f(0, 0, 0);
+        javax.vecmath.Vector3f defaultTarget = new javax.vecmath.Vector3f(0, 0, -1);
         Camera defaultCamera = new Camera(
                 defaultPosition,
                 defaultTarget,
@@ -75,20 +72,20 @@ public class SceneManager {
         model.setName(name);
 
         // Получаем параметры камеры
-        Vector3f cameraPos = new Vector3f(
+        com.cgvsu.math.Vector3f cameraPos = new com.cgvsu.math.Vector3f(
                 camera.getPosition().x,
                 camera.getPosition().y,
                 camera.getPosition().z
         );
 
-        Vector3f cameraTarget = new Vector3f(
+        com.cgvsu.math.Vector3f cameraTarget = new com.cgvsu.math.Vector3f(
                 camera.getTarget().x,
                 camera.getTarget().y,
                 camera.getTarget().z
         );
 
         // Вычисляем направление камеры
-        Vector3f direction = new Vector3f(
+        com.cgvsu.math.Vector3f direction = new com.cgvsu.math.Vector3f(
                 cameraTarget.x - cameraPos.x,
                 cameraTarget.y - cameraPos.y,
                 cameraTarget.z - cameraPos.z
@@ -109,14 +106,14 @@ public class SceneManager {
 
         // Создаем вершины пирамиды
         // Вершина пирамиды (перед камеры) - начало направления
-        Vector3f pyramidTop = new Vector3f(
+        com.cgvsu.math.Vector3f pyramidTop = new com.cgvsu.math.Vector3f(
                 cameraPos.x,
                 cameraPos.y,
                 cameraPos.z
         );
 
         // Основание пирамиды (смещено по направлению взгляда)
-        Vector3f baseCenter = new Vector3f(
+        com.cgvsu.math.Vector3f baseCenter = new com.cgvsu.math.Vector3f(
                 cameraPos.x + direction.x * 1.5f,
                 cameraPos.y + direction.y * 1.5f,
                 cameraPos.z + direction.z * 1.5f
@@ -124,10 +121,10 @@ public class SceneManager {
 
         // Векторы для создания основания
         // Вектор "вверх" для камеры
-        Vector3f upVector = new Vector3f(0, 1, 0);
+        com.cgvsu.math.Vector3f upVector = new com.cgvsu.math.Vector3f(0, 1, 0);
 
         // Вектор "вправо" - перпендикулярно direction и up
-        Vector3f rightVector = new Vector3f(
+        com.cgvsu.math.Vector3f rightVector = new com.cgvsu.math.Vector3f(
                 direction.y * upVector.z - direction.z * upVector.y,
                 direction.z * upVector.x - direction.x * upVector.z,
                 direction.x * upVector.y - direction.y * upVector.x
@@ -146,40 +143,40 @@ public class SceneManager {
         }
 
         // Создаем векторы основания
-        Vector3f baseUp = new Vector3f(
+        com.cgvsu.math.Vector3f baseUp = new com.cgvsu.math.Vector3f(
                 upVector.x * scale,
                 upVector.y * scale,
                 upVector.z * scale
         );
 
-        Vector3f baseRight = new Vector3f(
+        com.cgvsu.math.Vector3f baseRight = new com.cgvsu.math.Vector3f(
                 rightVector.x * scale,
                 rightVector.y * scale,
                 rightVector.z * scale
         );
 
         // 4 вершины основания
-        Vector3f[] baseVertices = {
+        com.cgvsu.math.Vector3f[] baseVertices = {
                 // Левая нижняя
-                new Vector3f(
+                new com.cgvsu.math.Vector3f(
                         baseCenter.x - baseRight.x - baseUp.x,
                         baseCenter.y - baseRight.y - baseUp.y,
                         baseCenter.z - baseRight.z - baseUp.z
                 ),
                 // Правая нижняя
-                new Vector3f(
+                new com.cgvsu.math.Vector3f(
                         baseCenter.x + baseRight.x - baseUp.x,
                         baseCenter.y + baseRight.y - baseUp.y,
                         baseCenter.z + baseRight.z - baseUp.z
                 ),
                 // Правая верхняя
-                new Vector3f(
+                new com.cgvsu.math.Vector3f(
                         baseCenter.x + baseRight.x + baseUp.x,
                         baseCenter.y + baseRight.y + baseUp.y,
                         baseCenter.z + baseRight.z + baseUp.z
                 ),
                 // Левая верхняя
-                new Vector3f(
+                new com.cgvsu.math.Vector3f(
                         baseCenter.x - baseRight.x + baseUp.x,
                         baseCenter.y - baseRight.y + baseUp.y,
                         baseCenter.z - baseRight.z + baseUp.z
@@ -188,7 +185,7 @@ public class SceneManager {
 
         // Добавляем вершины в модель
         model.vertices.add(pyramidTop); // Индекс 0
-        for (Vector3f vertex : baseVertices) {
+        for (com.cgvsu.math.Vector3f vertex : baseVertices) {
             model.vertices.add(vertex); // Индексы 1-4
         }
 
@@ -197,17 +194,22 @@ public class SceneManager {
         for (int i = 0; i < 4; i++) {
             com.cgvsu.model.Polygon poly = new com.cgvsu.model.Polygon();
             int nextIndex = (i + 1) % 4;
-            poly.setVertexIndices(new ArrayList<>(Arrays.asList(
-                    0,                     // Вершина пирамиды
-                    1 + i,                 // Текущая вершина основания
-                    1 + nextIndex          // Следующая вершина основания
-            )));
+            ArrayList<Integer> vertexIndices = new ArrayList<>(); // Изменено на ArrayList
+            vertexIndices.add(0);                     // Вершина пирамиды
+            vertexIndices.add(1 + i);                 // Текущая вершина основания
+            vertexIndices.add(1 + nextIndex);         // Следующая вершина основания
+            poly.setVertexIndices(vertexIndices);
             model.polygons.add(poly);
         }
 
         // Основание пирамиды (квадрат)
         com.cgvsu.model.Polygon basePoly = new com.cgvsu.model.Polygon();
-        basePoly.setVertexIndices(new ArrayList<>(Arrays.asList(1, 2, 3, 4)));
+        ArrayList<Integer> baseIndices = new ArrayList<>(); // Изменено на ArrayList
+        baseIndices.add(1);
+        baseIndices.add(2);
+        baseIndices.add(3);
+        baseIndices.add(4);
+        basePoly.setVertexIndices(baseIndices);
         model.polygons.add(basePoly);
 
         // Рассчитываем нормали
@@ -274,19 +276,19 @@ public class SceneManager {
 
     public void addCamera() {
         // Создаем новую камеру со смещенной позицией
-        JVector3f position;
+        javax.vecmath.Vector3f position;
         if (!cameras.isEmpty()) {
             Camera current = cameras.get(currentCameraIndex);
-            position = new JVector3f(
+            position = new javax.vecmath.Vector3f(
                     current.getPosition().x + 2,
                     current.getPosition().y,
                     current.getPosition().z + 2
             );
         } else {
-            position = new JVector3f(2, 0, 2);
+            position = new javax.vecmath.Vector3f(2, 0, 2);
         }
 
-        JVector3f target = new JVector3f(0, 0, -1);
+        javax.vecmath.Vector3f target = new javax.vecmath.Vector3f(0, 0, -1);
 
         Camera newCamera = new Camera(
                 position,
@@ -320,8 +322,8 @@ public class SceneManager {
     public Camera getCurrentCamera() {
         if (cameras.isEmpty()) {
             // Создаем камеру по умолчанию
-            JVector3f position = new JVector3f(0, 0, 0);
-            JVector3f target = new JVector3f(0, 0, -1);
+            javax.vecmath.Vector3f position = new javax.vecmath.Vector3f(0, 0, 0);
+            javax.vecmath.Vector3f target = new javax.vecmath.Vector3f(0, 0, -1);
             return new Camera(position, target,
                     (float) Math.toRadians(60), 1.0F, 0.1F, 100.0F);
         }

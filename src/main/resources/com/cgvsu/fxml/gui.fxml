@@ -93,69 +93,7 @@
     </center>
 
     <right>
-        <VBox fx:id="transformationPanel" spacing="10" style="-fx-padding: 10; -fx-min-width: 250;">
-            <Label text="Рендеринг" style="-fx-font-weight: bold; -fx-font-size: 14;" />
-
-            <TitledPane text="Настройки отображения" expanded="true">
-                <VBox spacing="10" style="-fx-padding: 10;">
-                    <VBox spacing="5">
-                        <Label text="Режим рендеринга:" />
-                        <ComboBox fx:id="renderModeComboBox" prefWidth="200" />
-                    </VBox>
-
-                    <Separator />
-
-                    <VBox spacing="5">
-                        <Label text="Цвет модели:" />
-                        <ColorPicker fx:id="modelColorPicker" prefWidth="200" />
-                    </VBox>
-
-                    <Separator />
-
-                    <VBox spacing="5">
-                        <Label text="Текстура:" />
-                        <Button fx:id="loadTextureButton" text="Загрузить текстуру"
-                                maxWidth="Infinity" />
-                    </VBox>
-                </VBox>
-            </TitledPane>
-
-            <TitledPane text="Перемещение" expanded="false">
-                <VBox spacing="5" style="-fx-padding: 10;">
-                    <Label text="X:" />
-                    <Slider min="-10" max="10" value="0" showTickLabels="true" showTickMarks="true" />
-                    <Label text="Y:" />
-                    <Slider min="-10" max="10" value="0" showTickLabels="true" showTickMarks="true" />
-                    <Label text="Z:" />
-                    <Slider min="-10" max="10" value="0" showTickLabels="true" showTickMarks="true" />
-                    <Button text="Применить" style="-fx-background-color: #3498db; -fx-text-fill: white;"
-                            maxWidth="Infinity" />
-                </VBox>
-            </TitledPane>
-
-            <TitledPane text="Вращение" expanded="false">
-                <VBox spacing="5" style="-fx-padding: 10;">
-                    <Label text="X (градусы):" />
-                    <Slider min="-180" max="180" value="0" showTickLabels="true" showTickMarks="true" />
-                    <Label text="Y (градусы):" />
-                    <Slider min="-180" max="180" value="0" showTickLabels="true" showTickMarks="true" />
-                    <Label text="Z (градусы):" />
-                    <Slider min="-180" max="180" value="0" showTickLabels="true" showTickMarks="true" />
-                    <Button text="Применить" style="-fx-background-color: #3498db; -fx-text-fill: white;"
-                            maxWidth="Infinity" />
-                </VBox>
-            </TitledPane>
-
-            <TitledPane text="Масштаб" expanded="false">
-                <VBox spacing="5" style="-fx-padding: 10;">
-                    <Label text="Масштаб:" />
-                    <Slider min="0.1" max="5" value="1" showTickLabels="true" showTickMarks="true" />
-                    <CheckBox text="Сохранять пропорции" selected="true" />
-                    <Button text="Применить" style="-fx-background-color: #3498db; -fx-text-fill: white;"
-                            maxWidth="Infinity" />
-                </VBox>
-            </TitledPane>
-        </VBox>
+        <VBox fx:id="transformationPanelContainer" spacing="10" style="-fx-padding: 10; -fx-min-width: 250;" />
     </right>
 
     <bottom>
@@ -164,4 +102,15 @@
                 <HBox spacing="10" style="-fx-padding: 0 10;">
                     <Label fx:id="modelCountLabel" text="Моделей: 0" />
                     <Label fx:id="cameraCountLabel" text="Камер: 1" />
-                </HBox
+                </HBox>
+            </left>
+            <center>
+                <Pane BorderPane.alignment="CENTER" />
+            </center>
+            <right>
+                <Label text="Готов" style="-fx-padding: 0 10 0 0;" />
+            </right>
+        </BorderPane>
+    </bottom>
+
+</BorderPane>

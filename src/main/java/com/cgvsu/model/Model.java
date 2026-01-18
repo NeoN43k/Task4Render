@@ -1,9 +1,13 @@
 package com.cgvsu.model;
+
 import com.cgvsu.math.Vector2f;
 import com.cgvsu.math.Vector3f;
-import java.util.ArrayList;
+import com.cgvsu.math.Matrix4f;
+import com.cgvsu.math.Vector4f;
+import com.cgvsu.render_engine.GraphicConveyor;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Model {
     private String name;
@@ -15,24 +19,127 @@ public class Model {
     public ArrayList<Vector3f> normals = new ArrayList<Vector3f>();
     public ArrayList<Polygon> polygons = new ArrayList<Polygon>();
 
-
-
-
-    // ВНИМАНИЕ: Второй студент добавит сюда матрицу трансформаций!
-    // private Matrix4f transformMatrix;
+    // Матрица трансформации модели
+    private Matrix4f transformMatrix;
+    private Vector3f position = new Vector3f(0, 0, 0);
+    private Vector3f rotation = new Vector3f(0, 0, 0); // В радианах
+    private Vector3f scale = new Vector3f(1, 1, 1);
 
     public Model() {
         this.vertices = new ArrayList<>();
         this.polygons = new ArrayList<>();
         this.name = "Unnamed Model";
+        this.transformMatrix = Matrix4f.identity();
     }
 
-    // === Конструктор для копирования ===
+    // Конструктор для копирования
     public Model(Model other) {
         this.name = other.name + " (copy)";
         this.vertices = new ArrayList<>(other.vertices);
         this.polygons = new ArrayList<>(other.polygons);
         this.filePath = other.filePath;
+        this.position = new Vector3f(other.position.x, other.position.y, other.position.z);
+        this.rotation = new Vector3f(other.rotation.x, other.rotation.y, other.rotation.z);
+        this.scale = new Vector3f(other.scale.x, other.scale.y, other.scale.z);
+        updateTransformMatrix();
+    }
+
+    // === Трансформации ===
+    public void updateTransformMatrix() {
+        this.transformMatrix = GraphicConveyor.getModelMatrix(position, rotation, scale);
+    }
+
+    public void setPosition(float x, float y, float z) {
+        this.position = new Vector3f(x, y, z);
+        updateTransformMatrix();
+    }
+
+    public void setRotation(float x, float y, float z) {
+        this.rotation = new Vector3f(x, y, z);
+        updateTransformMatrix();
+    }
+
+    public void setScale(float x, float y, float z) {
+        this.scale = new Vector3f(x, y, z);
+        updateTransformMatrix();
+    }
+
+    public void translate(float dx, float dy, float dz) {
+        this.position = new Vector3f(
+                position.x + dx,
+                position.y + dy,
+                position.z + dz
+        );
+        updateTransformMatrix();
+    }
+
+    public void rotate(float dx, float dy, float dz) {
+        this.rotation = new Vector3f(
+                rotation.x + dx,
+                rotation.y + dy,
+                rotation.z + dz
+        );
+        updateTransformMatrix();
+    }
+
+    public void scale(float sx, float sy, float sz) {
+        this.scale = new Vector3f(
+                scale.x * sx,
+                scale.y * sy,
+                scale.z * sz
+        );
+        updateTransformMatrix();
+    }
+
+    public Matrix4f getTransformMatrix() {
+        return transformMatrix;
+    }
+
+    public Vector3f getPosition() {
+        return position;
+    }
+
+    public Vector3f getRotation() {
+        return rotation;
+    }
+
+    public Vector3f getScale() {
+        return scale;
+    }
+
+    // Получение трансформированных вершин
+    public List<Vector3f> getTransformedVertices() {
+        List<Vector3f> transformed = new ArrayList<>();
+        for (Vector3f vertex : vertices) {
+            Vector3f transformedVertex = GraphicConveyor.multiplyMatrix4ByVector3(
+                    transformMatrix, vertex
+            );
+            transformed.add(transformedVertex);
+        }
+        return transformed;
+    }
+
+    // Получение трансформированных нормалей (только вращение)
+    public List<Vector3f> getTransformedNormals() {
+        if (normals.isEmpty()) {
+            calculateNormals();
+        }
+
+        List<Vector3f> transformed = new ArrayList<>();
+        Matrix4f rotationMatrix = Matrix4f.rotateX(rotation.x)
+                .multiply(Matrix4f.rotateY(rotation.y))
+                .multiply(Matrix4f.rotateZ(rotation.z));
+
+        for (Vector3f normal : normals) {
+            // Для нормалей используем только вращательную часть
+            Vector4f normal4 = new Vector4f(normal.x, normal.y, normal.z, 0);
+            Vector4f transformed4 = rotationMatrix.multiply(normal4);
+            Vector3f transformedNormal = new Vector3f(
+                    transformed4.x, transformed4.y, transformed4.z
+            ).normalize();
+            transformed.add(transformedNormal);
+        }
+        return transformed;
     }
 
     // === Геттеры и сеттеры ===
@@ -51,10 +158,10 @@ public class Model {
     public String getFilePath() { return filePath; }
     public void setFilePath(String filePath) { this.filePath = filePath; }
 
-    // === Утилитные методы ===
     public int getVertexCount() { return vertices.size(); }
     public int getPolygonCount() { return polygons.size(); }
 
+    // === Утилитные методы ===
     public void calculateNormals() {
         // Инициализируем список нормалей для вершин
         normals.clear();
@@ -161,8 +268,38 @@ public class Model {
         polygons = triangulatedPolygons;
     }
 
-    // TODO: Второй студент добавит методы для работы с трансформациями
-    // public Matrix4f getTransformMatrix() { ... }
-    // public void applyTransformation(Matrix4f matrix) { ... }
-    // public List<Vector3f> getTransformedVertices() { ... }
+    // Сохранение модели с учетом трансформаций
+    public Model getTransformedModel() {
+        Model transformed = new Model();
+        transformed.setName(this.name + " (transformed)");
+
+        // Копируем полигоны
+        transformed.polygons = new ArrayList<>(this.polygons);
+        transformed.textureVertices = new ArrayList<>(this.textureVertices);
+
+        // Применяем трансформации к вершинам
+        for (Vector3f vertex : this.vertices) {
+            Vector3f transformedVertex = GraphicConveyor.multiplyMatrix4ByVector3(
+                    this.transformMatrix, vertex
+            );
+            transformed.vertices.add(transformedVertex);
+        }
+
+        // Применяем трансформации к нормалям
+        for (Vector3f normal : this.normals) {
+            // Только вращение для нормалей
+            Matrix4f rotationMatrix = Matrix4f.rotateX(rotation.x)
+                    .multiply(Matrix4f.rotateY(rotation.y))
+                    .multiply(Matrix4f.rotateZ(rotation.z));
+
+            Vector4f normal4 = new Vector4f(normal.x, normal.y, normal.z, 0);
+            Vector4f transformed4 = rotationMatrix.multiply(normal4);
+            Vector3f transformedNormal = new Vector3f(
+                    transformed4.x, transformed4.y, transformed4.z
+            ).normalize();
+            transformed.normals.add(transformedNormal);
+        }
+
+        return transformed;
+    }
 }

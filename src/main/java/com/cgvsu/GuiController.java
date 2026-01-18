@@ -7,6 +7,7 @@ import com.cgvsu.scene.SceneManager;
 import com.cgvsu.dialogs.ErrorDialog;
 import com.cgvsu.dialogs.SaveOptionsDialog;
 import com.cgvsu.model.Model;
+import com.cgvsu.components.TransformationPanel;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -76,7 +77,7 @@ public class GuiController implements Initializable {
     private TreeView<String> cameraTreeView;
 
     @FXML
-    private VBox transformationPanel;
+    private VBox transformationPanelContainer;
 
     @FXML
     private ToggleButton selectModelButton;
@@ -113,6 +114,11 @@ public class GuiController implements Initializable {
     private ToggleGroup selectionModeGroup;
     private Texture currentTexture;
     private boolean showCameras = false;
+    private TransformationPanel transformationPanel;
+
+    // Для управления мышкой
+    private double lastMouseX, lastMouseY;
+    private boolean isMousePressed = false;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -122,6 +128,7 @@ public class GuiController implements Initializable {
         setupUI();
         setupEventHandlers();
         setupRenderControls();
+        setupMouseControls();
     }
 
     private void setupUI() {
@@ -136,6 +143,10 @@ public class GuiController implements Initializable {
 
         // Инициализация TreeView для камер
         setupCameraTreeView();
+
+        // Создаем и добавляем панель трансформаций
+        transformationPanel = new TransformationPanel(sceneManager);
+        transformationPanelContainer.getChildren().add(transformationPanel);
 
         // Слушатель изменений в списке моделей
         sceneManager.getModels().addListener((ListChangeListener<SceneManager.SceneModel>) c -> {
@@ -163,6 +174,7 @@ public class GuiController implements Initializable {
                     if (index >= 0) {
                         if (selectModelButton.isSelected()) {
                             sceneManager.selectModel(index);
+                            transformationPanel.updateSliders();
                         }
                     }
                 }
@@ -222,51 +234,115 @@ public class GuiController implements Initializable {
     }
 
     private void setupRenderControls() {
-        // Инициализация ColorPicker
-        modelColorPicker.setValue(Color.LIGHTGRAY);
-        modelColorPicker.setOnAction(event -> {
-            RenderEngine.setModelColor(modelColorPicker.getValue());
-            renderScene();
-        });
+        // Инициализация ColorPicker - проверка на null
+        if (modelColorPicker != null) {
+            modelColorPicker.setValue(Color.LIGHTGRAY);
+            modelColorPicker.setOnAction(event -> {
+                RenderEngine.setModelColor(modelColorPicker.getValue());
+                renderScene();
+            });
+        }
 
         // Инициализация ComboBox с режимами рендеринга
-        renderModeComboBox.getItems().addAll(
-                "Только сетка",
-                "Заливка цветом",
-                "Только текстура",
-                "Освещение + цвет",
-                "Освещение + текстура",
-                "Все эффекты"
-        );
-        renderModeComboBox.setValue("Заливка цветом");
-        renderModeComboBox.setOnAction(event -> {
-            updateRenderModeFromComboBox();
-        });
+        if (renderModeComboBox != null) {
+            renderModeComboBox.getItems().addAll(
+                    "Только сетка",
+                    "Заливка цветом",
+                    "Только текстура",
+                    "Освещение + цвет",
+                    "Освещение + текстура",
+                    "Все эффекты"
+            );
+            renderModeComboBox.setValue("Заливка цветом");
+            renderModeComboBox.setOnAction(event -> {
+                updateRenderModeFromComboBox();
+            });
+        }
 
         // Инициализация CheckMenuItems
-        wireframeMenuItem.selectedProperty().addListener((obs, oldVal, newVal) -> {
-            updateRenderModeFromCheckboxes();
-        });
+        if (wireframeMenuItem != null) {
+            wireframeMenuItem.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                updateRenderModeFromCheckboxes();
+            });
+        }
 
-        textureMenuItem.selectedProperty().addListener((obs, oldVal, newVal) -> {
-            updateRenderModeFromCheckboxes();
-        });
+        if (textureMenuItem != null) {
+            textureMenuItem.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                updateRenderModeFromCheckboxes();
+            });
+        }
 
-        lightingMenuItem.selectedProperty().addListener((obs, oldVal, newVal) -> {
-            updateRenderModeFromCheckboxes();
-        });
+        if (lightingMenuItem != null) {
+            lightingMenuItem.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                updateRenderModeFromCheckboxes();
+            });
+        }
 
         // Кнопка загрузки текстуры
-        loadTextureButton.setOnAction(event -> loadTexture());
+        if (loadTextureButton != null) {
+            loadTextureButton.setOnAction(event -> loadTexture());
+        }
 
         // Управление камерами
-        addCameraMenuItem.setOnAction(event -> addCamera());
-        removeCameraMenuItem.setOnAction(event -> removeCamera());
-        toggleCameraVisibilityItem.setOnAction(event -> toggleCameraVisibility());
+        if (addCameraMenuItem != null) {
+            addCameraMenuItem.setOnAction(event -> addCamera());
+        }
+
+        if (removeCameraMenuItem != null) {
+            removeCameraMenuItem.setOnAction(event -> removeCamera());
+        }
+
+        if (toggleCameraVisibilityItem != null) {
+            toggleCameraVisibilityItem.setOnAction(event -> toggleCameraVisibility());
+        }
 
         // Инициализация состояния рендеринга
         RenderEngine.setRenderMode(RenderModes.SOLID_COLOR);
-        RenderEngine.setModelColor(modelColorPicker.getValue());
+        RenderEngine.setModelColor(Color.LIGHTGRAY);
+    }
+
+    private void setupMouseControls() {
+        viewportCanvas.setOnMousePressed(event -> {
+            isMousePressed = true;
+            lastMouseX = event.getX();
+            lastMouseY = event.getY();
+        });
+
+        viewportCanvas.setOnMouseReleased(event -> {
+            isMousePressed = false;
+        });
+
+        viewportCanvas.setOnMouseDragged(event -> {
+            if (isMousePressed) {
+                double deltaX = event.getX() - lastMouseX;
+                double deltaY = event.getY() - lastMouseY;
+                lastMouseX = event.getX();
+                lastMouseY = event.getY();
+
+                Camera camera = sceneManager.getCurrentCamera();
+
+                // Левый клик + drag = вращение
+                if (event.isPrimaryButtonDown()) {
+                    camera.rotate((float) deltaX * 0.5f, (float) deltaY * 0.5f);
+                }
+                // Правый клик + drag = панорамирование
+                else if (event.isSecondaryButtonDown()) {
+                    camera.pan((float) deltaX * 0.01f, (float) deltaY * -0.01f);
+                }
+                // Средний клик/колесо + drag = приближение/отдаление
+                else if (event.isMiddleButtonDown()) {
+                    camera.zoom((float) deltaY * 0.1f);
+                }
+
+                renderScene();
+            }
+        });
+
+        viewportCanvas.setOnScroll(event -> {
+            Camera camera = sceneManager.getCurrentCamera();
+            camera.zoom((float) event.getDeltaY() * 0.1f);
+            renderScene();
+        });
     }
 
     private void setupEventHandlers() {
