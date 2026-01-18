@@ -12,18 +12,19 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>5.8.1</junit.version>
+        <javafx.version>17.0.12</javafx.version> <!-- ИЗМЕНЕНО -->
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
-            <version>17.0.0.1</version>
+            <version>${javafx.version}</version> <!-- ИСПОЛЬЗУЕМ ПЕРЕМЕННУЮ -->
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-fxml</artifactId>
-            <version>17.0.0.1</version>
+            <version>${javafx.version}</version> <!-- ИСПОЛЬЗУЕМ ПЕРЕМЕННУЮ -->
         </dependency>
         <dependency>
             <groupId>java3d</groupId>
@@ -55,10 +56,6 @@
                     <target>17</target>
                 </configuration>
             </plugin>
-            <!--
-            for building jar using maven:
-            mvn clean -Dmaven.clean.failOnError=false compile assembly:single -DskipTests=true
-            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
